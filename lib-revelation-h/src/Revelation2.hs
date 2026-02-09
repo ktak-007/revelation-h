@@ -4,7 +4,12 @@
 module Revelation2 (encrypt, decrypt) where
 
 import qualified Error
+
 import           Control.Monad (replicateM)
+import           Control.Monad.IO.Class (MonadIO(liftIO))
+
+-- mtl
+import           Control.Monad.Except
 
 -- zlib
 import qualified Codec.Compression.Zlib as Zlib
@@ -91,57 +96,59 @@ parseInput = ParsedInput <$  checkRvlMagicString
                          <*> getIV
                          <*> getRemainingEncodedData
 
-getParsedInput :: BL.ByteString -> Either Error.Msg ParsedInput
-getParsedInput input = do
+getParsedInput :: BL.ByteString -> ExceptT Error.Msg IO ParsedInput
+getParsedInput input =
   case runGetOrFail parseInput input of
-    Left (_, pos, msg) -> Left $ msg <> " at position " <> show pos
-    Right (_, _, parsed) -> Right parsed
+    Left (_, pos, msg) -> throwError $ msg <> " at position " <> show pos
+    Right (_, _, parsed) -> return parsed
 
-decrypt :: BL.ByteString -> B.ByteString -> Either Error.Msg BL.ByteString
+decrypt :: BL.ByteString -> B.ByteString -> ExceptT Error.Msg IO BL.ByteString
 decrypt rawEncodedInput password = do
   input <- getParsedInput rawEncodedInput
   encodedData <- if BA.length input.encodedData `mod` 16 /= 0
-                 then Left Error.format
-                 else Right input.encodedData
+                 then throwError Error.format
+                 else return input.encodedData
   initialVector <- let iv = makeIV input.iv :: Maybe (IV AES256)
                    in case iv of
-                      Nothing  -> Left Error.initialVector
-                      Just iv' -> Right iv'
+                      Nothing  -> throwError Error.initialVector
+                      Just iv' -> return iv'
   cipher <- let pbkdf2 = getPBKF2 password input.salt
             in case cipherInit pbkdf2 of
-               CryptoFailed e -> Left $ Error.cipherInit <> ": " <> show e
-               CryptoPassed c -> Right c
+               CryptoFailed e -> throwError $ Error.cipherInit <> ": " <> show e
+               CryptoPassed c -> return c
   let (h, decodedData) = BA.splitAt 32 $ cbcDecrypt cipher initialVector encodedData
   case digestFromByteString h of
-      Nothing -> Left Error.hash256
+      Nothing -> throwError Error.hash256
       Just hash256 -> if hash256 /= hashWith SHA256 decodedData
-                      then Left Error.password
+                      then throwError Error.password
                       else decompress decodedData
 
 getPBKF2 :: B.ByteString -> B.ByteString -> B.ByteString
 getPBKF2 = fastPBKDF2_SHA1 (Parameters 12000 32)
 
-decompress :: B.ByteString -> Either Error.Msg BL.ByteString
+decompress :: B.ByteString -> ExceptT Error.Msg IO BL.ByteString
 decompress compressedData = do
   let padlen = B.last compressedData
   if B.any (/=padlen) (B.takeEnd (fromIntegral padlen) compressedData)
-  then Left Error.format
-  else Right $ Zlib.decompress $ BL.fromStrict $ B.dropEnd (fromIntegral padlen) compressedData
+  then throwError Error.format
+  else return $ Zlib.decompress $ BL.fromStrict $ B.dropEnd (fromIntegral padlen) compressedData
 
-encrypt :: MonadRandom m => BL.ByteString -> B.ByteString -> m (Either Error.Msg BL.ByteString)
+encrypt :: (MonadRandom m, MonadIO m) => BL.ByteString -> B.ByteString -> ExceptT Error.Msg m BL.ByteString
 encrypt input password = do
-  salt <- getRandomBytes 8
-  iv <- getRandomBytes 16
-  return $ encrypt' input salt iv password
+  salt <- liftIO $ getRandomBytes 8
+  iv <- liftIO $ getRandomBytes 16
+  encrypt' input salt iv password
 
-encrypt' :: BL.ByteString -> B.ByteString -> B.ByteString -> B.ByteString -> Either Error.Msg BL.ByteString
+encrypt' :: MonadRandom m
+         => BL.ByteString -> B.ByteString -> B.ByteString -> B.ByteString
+         -> ExceptT Error.Msg m BL.ByteString
 encrypt' input salt iv password = do
   cipher <- case cipherInit $ getPBKF2 password salt of
-                 CryptoFailed e -> Left $ Error.cipherInit <> ": " <> show e
-                 CryptoPassed c -> Right c
+                 CryptoFailed e -> throwError $ Error.cipherInit <> ": " <> show e
+                 CryptoPassed c -> return c
   initialVector <- case makeIV iv :: Maybe (IV AES256) of
-                        Nothing  -> Left Error.initialVector
-                        Just iv' -> Right iv'
+                        Nothing  -> throwError Error.initialVector
+                        Just iv' -> return iv'
   let compressedInput = BL.toStrict $ Zlib.compress input
       padlen = 16 - (B.length compressedInput `mod` 16)
       padding = B.replicate padlen $ fromIntegral padlen

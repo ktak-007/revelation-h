@@ -21,14 +21,17 @@ import qualified Data.Text as T
 import           Text.XML
 import           Text.XML.Cursor
 
-parse :: BL.ByteString -> Either Error.Msg Document
+-- mtl
+import           Control.Monad.Except
+
+parse :: BL.ByteString -> ExceptT Error.Msg IO Document
 parse input = case parseLBS def input of
-  Left err -> Left $ show err
+  Left err -> throwError $ show err
   Right doc@(Document _ root _) ->
     if root.elementName.nameLocalName /= "revelationdata"
     || "dataversion" `notMember` root.elementAttributes
-    then Left Error.format
-    else Right $ removeEmptyNodes doc
+    then throwError Error.format
+    else return $ removeEmptyNodes doc
 
 
 removeEmptyNodes :: Document -> Document

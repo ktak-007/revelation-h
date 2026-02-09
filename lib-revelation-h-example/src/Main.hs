@@ -8,6 +8,7 @@ import qualified RevelationXML
 
 import           Control.Exception (bracket_)
 import           Control.Monad (when, unless)
+import           Control.Monad.IO.Class (liftIO)
 import           System.Environment (getArgs, getProgName)
 import           System.Exit (exitWith, ExitCode (ExitFailure), exitSuccess)
 import           System.IO (stdout, hFlush, hGetEcho, hSetEcho, stdin)
@@ -23,11 +24,8 @@ import           Text.XML (Document(Document), Element(elementAttributes), rende
 -- directory
 import           System.Directory (doesFileExist)
 
--- category-extras
--- import           Control.Monad.Either
-
 -- mtl
--- import Control.Monad.Except
+import           Control.Monad.Except (runExceptT)
 
 usage :: IO ()
 usage = do
@@ -44,23 +42,18 @@ main = do
   input <- BL.readFile inputFileName
   password <- getPassword
 
-  case Revelation2.decrypt input password of
+  encodedFile <- runExceptT $ do
+    decodedRawXml <- Revelation2.decrypt input password
+    liftIO $ putStrLn $ "File '" <> inputFileName <> "' succesfully decoded."
+    doc@(Document _ root _) <- RevelationXML.parse decodedRawXml
+    liftIO $ putStrLn $ "File '" <> inputFileName <> "' successfully parsed: " <> show (elementAttributes root)
+    Revelation2.encrypt (renderLBS def doc) password
+
+  case encodedFile of
+    Right enc2Out -> do
+      BL.writeFile outputFileName enc2Out
+      putStrLn $ "Rendered XML have been encoded and saved to '" <> outputFileName <> "'"
     Left msg -> putStrLn $ "Error: " <> msg
-    Right decodedRawXml -> do
-      putStrLn $ "File '" <> inputFileName <> "' succesfully decoded."
-
-      case RevelationXML.parse decodedRawXml of
-        Left msg -> putStrLn $ "Error: " <> msg
-        Right doc@(Document _ root _) -> do
-          putStrLn $ "File '" <> inputFileName <> "' successfully parsed: " <> show (elementAttributes root)
-
-          enc2 <- Revelation2.encrypt (renderLBS def doc) password
-          case enc2 of
-            Left msg -> putStrLn $ "Error: " <> msg
-            Right enc2Out -> do
-              BL.writeFile outputFileName enc2Out
-              putStrLn $ "Rendered XML have been encoded and saved to '" <> outputFileName <> "'"
-
 
 getPassword :: IO B.ByteString
 getPassword = do

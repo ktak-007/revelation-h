@@ -76,6 +76,7 @@ library
                     , containers
                     , crypton
                     , memory
+                    , mtl
                     , text
                     , xml-conduit
                     , zlib
