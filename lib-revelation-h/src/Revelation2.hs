@@ -5,8 +5,10 @@ module Revelation2 (encrypt, decrypt) where
 
 import qualified Error
 
+-- base
 import           Control.Monad (replicateM)
 import           Control.Monad.IO.Class (MonadIO(liftIO))
+import           Data.Word (Word8)
 
 -- mtl
 import           Control.Monad.Except
@@ -34,9 +36,9 @@ import           Data.Binary.Get ( getRemainingLazyByteString
 -- memory
 import qualified Data.ByteArray as BA
 
+-- bytestring
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString as B
-import           Data.Word (Word8)
 
 header :: B.ByteString
 header = "rvl"    -- magic string
