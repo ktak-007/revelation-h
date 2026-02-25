@@ -3,7 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module RevelationXML (parse, parse2, Entry(..)) where
+module RevelationXML (parse, parseEntries, Entry(..)) where
 
 import qualified Error
 
@@ -24,6 +24,9 @@ import           Text.XML.Cursor
 -- mtl
 import           Control.Monad.Except
 
+-- base
+import           Data.Data (Data)
+
 parse :: BL.ByteString -> ExceptT Error.Msg IO Document
 parse input = case parseLBS def input of
   Left err -> throwError $ show err
@@ -32,7 +35,6 @@ parse input = case parseLBS def input of
     || "dataversion" `notMember` root.elementAttributes
     then throwError Error.format
     else return $ removeEmptyNodes doc
-
 
 removeEmptyNodes :: Document -> Document
 removeEmptyNodes (Document prologue root epilogue) = Document prologue root' epilogue
@@ -107,6 +109,7 @@ data Entry = Generic    { name :: Text
                         , cardtype :: Text
                         , cardnumber :: Text
                         , expirydate :: Text
+                        , cardccv :: Text
                         , pin :: Text
                         }
            | Phone      { name :: Text
@@ -141,21 +144,23 @@ data Entry = Generic    { name :: Text
                         , password :: Text
                         , database :: Text
                         }
-           deriving Show
+           deriving (Data, Show)
 
-parse2 :: BL.ByteString -> Either Error.Msg [Entry]
-parse2 input = case parseLBS def input of
-  Left err -> Left $ show err
+parseEntries :: BL.ByteString -> ExceptT Error.Msg IO [Entry]
+parseEntries input = case parseLBS def input of
+  Left err -> throwError $ show err
   Right doc@(Document _ root _) ->
     if root.elementName.nameLocalName /= "revelationdata"
     || "dataversion" `notMember` root.elementAttributes
-    then Left Error.format
-    else parseEntries doc
+    then throwError Error.format
+    else traverse parseEntry' rootEntries
+    where
+    rootEntries = fromDocument doc $/ element "entry"
 
-parseEntries :: Document -> Either Error.Msg [Entry]
-parseEntries doc = traverse parseEntry entries
-  where cursor = fromDocument doc
-        entries = cursor $/ element "entry"
+parseEntry' :: Cursor -> ExceptT Error.Msg IO Entry
+parseEntry' node = case parseEntry node of
+  Left err -> throwError $ show err
+  Right entry -> return entry
 
 parseEntry :: Cursor -> Either Error.Msg Entry
 parseEntry node = do
@@ -192,6 +197,7 @@ parseEntry node = do
   cardtype    = field cardPrefix "cardtype"
   cardnumber  = field cardPrefix "cardnumber"
   expirydate  = field cardPrefix "expirydate"
+  cardccv     = field cardPrefix "ccv"
   pin         = field genPrefix  "pin"
   phonenumber = field phonePrefix "phonenumber"
   location    = field genPrefix "location"
