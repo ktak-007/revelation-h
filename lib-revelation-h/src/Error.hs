@@ -15,7 +15,7 @@ initialVector :: Msg
 initialVector = "Initial vector Error"
 
 password :: Msg
-password = "Password Error"
+password = "Incorrect password"
 
 hash256 :: Msg
 hash256 = "Hash256 Error"
