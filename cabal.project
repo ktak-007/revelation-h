@@ -1,2 +1,3 @@
 packages: lib-revelation-h
         , lib-revelation-h-example
+        , revelation-h
