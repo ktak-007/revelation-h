@@ -31,6 +31,7 @@ data Action = FILE_NEW
             | APP_SAY_HELLO
             | APP_LOCK
             | APP_QUIT
+            | APP_ABOUT
             deriving (Show)
 
 type Operation = Adw.Application -> IO ()

@@ -6,6 +6,7 @@
 
 module Main (main) where
 
+import qualified GUI.About
 import           GUI.Actions
 import qualified GUI.InfoPane
 import           GUI.Menu
@@ -59,6 +60,7 @@ main = do
       , actions =
         [ APP_QUIT >== \app -> app.quit
         , FILE_OPEN >== \app -> openFileDialog app treePane
+        , APP_ABOUT >== \app -> GUI.About.showAboutDialog app
         ]
       , sidebar = SidebarPage
         { title = "Menu"
@@ -85,6 +87,9 @@ appMenu =
   , Section Nothing
     [ "Lock" ==> APP_LOCK
     , "Exit" ==> APP_QUIT
+    ]
+  , Section Nothing
+    [ "About" ==> APP_ABOUT
     ]
   ]
 
