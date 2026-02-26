@@ -10,6 +10,10 @@ let
 
   haskell = pkgs.haskellPackages;
   haskellWithPackages = haskell.ghcWithPackages (hpkgs: with hpkgs; [
+    haskell-gi-base
+    gi-adwaita
+    gi-gtk
+    gi-gio
   ]);
 
   projectPackages = with haskellWithPackages; [
