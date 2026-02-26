@@ -45,11 +45,12 @@ import qualified Data.Text.Encoding as TE
 main :: IO ()
 main = do
   -- input <- BL.readFile "example.xml"
-  -- entries <- case RevelationXML.parseEntries input of
-  --            Left msg -> do
-  --              putStrLn $ "Error: " <> msg
-  --              return []
-  --            Right entrs -> return entrs
+  -- mbEntries <- runExceptT $ RevelationXML.parseEntries input
+  -- entries <- case mbEntries of
+  --   Left msg -> do
+  --     putStrLn $ "Error: " <> msg
+  --     return []
+  --   Right entries -> return entries
 
   runApplicationWindow (ApplicationId "org.gtk.revelation-h") $ do
     infoPane <- GUI.InfoPane.create

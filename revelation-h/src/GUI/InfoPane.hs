@@ -29,7 +29,10 @@ import           Data.GI.Base.Utils (whenJust)
 import           Data.Text (Text)
 import qualified Data.Text as T
 
+-- Hclip
+import           System.Hclip (setClipboard)
 
+-- base
 import           Control.Monad (unless)
 import           Data.Data (Data, toConstr, showConstr)
 import           Data.Int (Int64)
@@ -42,6 +45,7 @@ data InfoPane = InfoPane
 data RenderFunctions = RenderFunctions
   { addLink :: Text -> Text -> IO ()
   , addField :: Text -> Text -> IO ()
+  , addHidden :: Text -> Text -> IO ()
   , setNotes :: Text -> IO ()
   , setUpdated :: Entry -> IO ()
   }
@@ -101,6 +105,7 @@ create = do
   -- Group of fields
   group <- new Adw.PreferencesGroup [ #marginTop := 12 ]
   #append content group
+
   let addField name value = do
         valueLabel <- new Gtk.Label
           [ #label := value
@@ -111,6 +116,37 @@ create = do
         row <- new Adw.ActionRow [ #title := name ]
         Adw.actionRowAddSuffix row valueLabel
         Adw.preferencesGroupAdd group row
+
+  let addHidden name value = do
+        box <- new Gtk.Box
+          [ #orientation := Gtk.OrientationHorizontal
+          , #spacing := 6
+          , #valign := Gtk.AlignCenter
+          ]
+        valueLabel <- new Gtk.Label
+          [ #label := "xxxxxxxxxxxxxxxxxxxx"
+          , #valign := Gtk.AlignCenter
+          ]
+        Gtk.widgetAddCssClass valueLabel "dim-label"
+        #append box valueLabel
+        button <- new Gtk.Button
+          [ #iconName := "edit-copy-symbolic"
+          , #tooltipText := "Copy to clipboard"
+          , #hasFrame := False
+          ]
+        Gtk.widgetAddCssClass button "flat"
+        on button #clicked $ do
+          setClipboard $ T.unpack value
+          set button [ #iconName := "object-select-symbolic" ]
+          GLib.timeoutAdd GLib.PRIORITY_DEFAULT 2000 $ do
+            set button [ #iconName := "edit-copy-symbolic" ]
+            return False
+          return ()
+        #append box button
+        row <- new Adw.ActionRow [ #title := name ]
+        Adw.actionRowAddSuffix row box
+        Adw.preferencesGroupAdd group row
+
   let addLink name url = do
         link <- new Gtk.Label
           [ #useMarkup := True
@@ -120,6 +156,7 @@ create = do
         row <- new Adw.ActionRow [ #title := name ]
         Adw.actionRowAddSuffix row link
         Adw.preferencesGroupAdd group row
+
   let cleanGroup = do
         let loop mbNext = do
               whenJust mbNext $ \next -> do
@@ -226,7 +263,7 @@ create = do
 
         -- renderEntry' entry addLink addField setNotes setUpdated
         renderEntry $ RenderParams entry
-                    $ RenderFunctions addLink addField setNotes setUpdated
+                    $ RenderFunctions addLink addField addHidden setNotes setUpdated
 
         case entry of
           Folder {} -> return ()
@@ -298,7 +335,7 @@ renderEntry (RenderParams entry RenderFunctions {..}) = case entry of
     database ? field "Database"
   where
   field = addField
-  hidden n _ = addField n "xxxxxxxxxxxxxxxxx"
+  hidden = addHidden
 
 (?) :: Applicative f => Text -> (Text -> f ()) -> f ()
 t ? f = unless (T.null t) (f t)

@@ -16,12 +16,14 @@ let
     gi-gio
   ]);
 
-  projectPackages = with haskellWithPackages; [
+  projectPackages = (with haskellWithPackages; [
     haskellWithPackages
     haskell.ghcid
     haskell.cabal-install
     haskell.haskell-language-server
-  ];
+  ]) ++ (if pkgs.stdenv.isLinux then [
+    pkgs.xclip # For Hclip library
+  ] else []);
 
   funPackages = with sys; [
     figlet

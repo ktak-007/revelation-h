@@ -84,6 +84,7 @@ executable revelation-h
                     , gi-gtk
                     , haskell-gi-base
                     , mtl
+                    , Hclip
                     , text
 
     -- Directories containing source files.
