@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<revelationdata version="0.5.5" dataversion="1">
+
+<entry type="generic">
+ <name>Generic record</name>
+ <description>Generic server credentials</description>
+ <updated>1740597819</updated>
+ <notes>Example notes for generic entry</notes>
+ <field id="generic-hostname">server.example.com</field>
+ <field id="generic-username">admin</field>
+ <field id="generic-password">password123</field>
+</entry>
+
+<entry type="website">
+ <name>My Favorite Website</name>
+ <description>Website login credentials</description>
+ <updated>1740597819</updated>
+ <notes>Website access information</notes>
+ <field id="generic-url">https://example.com</field>
+ <field id="generic-username">john_doe</field>
+ <field id="generic-email">john@example.com</field>
+ <field id="generic-password">webpass456</field>
+</entry>
+
+<entry type="vnc">
+ <name>VNC to my client</name>
+ <description>VNC remote desktop access</description>
+ <updated>1740597819</updated>
+ <notes>Desktop VNC connection</notes>
+ <field id="generic-hostname">vnc.example.com</field>
+ <field id="generic-port">5900</field>
+ <field id="generic-username">vncuser</field>
+ <field id="generic-password">vncpass789</field>
+</entry>
+
+<entry type="shell">
+ <name>SSH to my hosting</name>
+ <description>SSH server access</description>
+ <updated>1740597819</updated>
+ <notes>SSH shell access for server management</notes>
+ <field id="generic-hostname">ssh.example.com</field>
+ <field id="generic-domain">example.com</field>
+ <field id="generic-username">sshuser</field>
+ <field id="generic-password">sshpass321</field>
+</entry>
+
+<entry type="email">
+ <name>My Personal Email</name>
+ <description>Email account</description>
+ <updated>1740597819</updated>
+ <notes>Email server credentials</notes>
+ <field id="generic-email">user@example.com</field>
+ <field id="generic-hostname">mail.example.com</field>
+ <field id="generic-username">mailuser</field>
+ <field id="generic-password">emailpass654</field>
+</entry>
+
+<entry type="creditcard">
+ <name>Extra Money Bank</name>
+ <description>Example credit card</description>
+ <updated>1740597819</updated>
+ <notes>Test credit card information</notes>
+ <field id="creditcard-cardtype">Visa</field>
+ <field id="creditcard-cardnumber">4532123456789010</field>
+ <field id="creditcard-expirydate">12/25</field>
+ <field id="creditcard-ccv">123</field>
+ <field id="generic-pin">1234</field>
+</entry>
+
+<entry type="phone">
+ <name>My Phone SIM card</name>
+ <description>Phone security settings</description>
+ <updated>1740597819</updated>
+ <notes>Phone lock and PIN information</notes>
+ <field id="phone-phonenumber">+1-555-123-4567</field>
+ <field id="generic-pin">9876</field>
+</entry>
+
+<entry type="door">
+ <name>Door Code</name>
+ <description>Door access code</description>
+ <updated>1740597819</updated>
+ <notes>Main door keypad code</notes>
+ <field id="generic-location">Front Door</field>
+ <field id="generic-code">4567</field>
+</entry>
+
+<entry type="cryptokey">
+ <name>Cryptokey</name>
+ <description>Key to my favorite service</description>
+ <updated>1740597819</updated>
+ <notes>RSA key pair for authentication</notes>
+ <field id="generic-hostname">keyserver.example.com</field>
+ <field id="generic-certificate">/path/to/certificate.pem</field>
+ <field id="generic-keyfile">/path/to/key.pem</field>
+ <field id="generic-password">keypassphrase</field>
+</entry>
+
+<entry type="database">
+ <name>My Database</name>
+ <description>Database server credentials</description>
+ <updated>1740597819</updated>
+ <notes>PostgreSQL database connection</notes>
+ <field id="generic-hostname">db.example.com</field>
+ <field id="generic-username">dbadmin</field>
+ <field id="generic-password">dbpass123</field>
+ <field id="generic-database">maindb</field>
+</entry>
+
+<entry type="folder">
+ <name>Work Accounts</name>
+ <description>Work-related credentials</description>
+ <updated>1740597819</updated>
+ <notes>Folder containing work accounts</notes>
+
+<entry type="website">
+ <name>Work Email</name>
+ <description>Corporate email account</description>
+ <updated>1740597819</updated>
+ <notes>Business email platform</notes>
+ <field id="generic-url">https://mail.company.com</field>
+ <field id="generic-username">john.smith</field>
+ <field id="generic-email">john.smith@company.com</field>
+ <field id="generic-password">workpass789</field>
+</entry>
+
+<entry type="generic">
+ <name>Work Server</name>
+ <description>Company server access</description>
+ <updated>1740597819</updated>
+ <notes>Internal company server</notes>
+ <field id="generic-hostname">work.internal.company</field>
+ <field id="generic-username">jsmith</field>
+ <field id="generic-password">workserver456</field>
+</entry>
+
+<entry type="folder">
+ <name>Development</name>
+ <description>Development tools and servers</description>
+ <updated>1740597819</updated>
+ <notes>Development environment access</notes>
+
+<entry type="website">
+ <name>Git Repository</name>
+ <description>Git server</description>
+ <updated>1740597819</updated>
+ <notes>Code repository access</notes>
+ <field id="generic-url">https://git.company.com</field>
+ <field id="generic-username">jsmith</field>
+ <field id="generic-email">jsmith@company.com</field>
+ <field id="generic-password">gitpass321</field>
+</entry>
+
+<entry type="database">
+ <name>Dev Database</name>
+ <description>Development database</description>
+ <updated>1740597819</updated>
+ <notes>Test database for development</notes>
+ <field id="generic-hostname">devdb.internal</field>
+ <field id="generic-username">devuser</field>
+ <field id="generic-password">devpass654</field>
+ <field id="generic-database">dev_db</field>
+</entry>
+</entry>
+</entry>
+
+<entry type="folder">
+ <name>Personal Accounts</name>
+ <description>Personal online services</description>
+ <updated>1740597819</updated>
+ <notes>Personal account collection</notes>
+
+<entry type="website">
+ <name>GitHub</name>
+ <description>GitHub account</description>
+ <updated>1740597819</updated>
+ <notes>Open source repository hosting</notes>
+ <field id="generic-url">https://github.com</field>
+ <field id="generic-username">myusername</field>
+ <field id="generic-email">user@example.com</field>
+ <field id="generic-password">githubpass123</field>
+</entry>
+
+<entry type="website">
+ <name>Gmail</name>
+ <description>Personal Gmail account</description>
+ <updated>1740597819</updated>
+ <notes>Primary email</notes>
+ <field id="generic-url">https://mail.google.com</field>
+ <field id="generic-username">myemail</field>
+ <field id="generic-email">myemail@gmail.com</field>
+ <field id="generic-password">gmailpass789</field>
+</entry>
+
+<entry type="creditcard">
+ <name>Visa Card</name>
+ <description>Personal Visa card</description>
+ <updated>1740597819</updated>
+ <notes>Primary credit card</notes>
+ <field id="creditcard-cardtype">Visa</field>
+ <field id="creditcard-cardnumber">4916345789012345</field>
+ <field id="creditcard-expirydate">06/26</field>
+ <field id="creditcard-ccv">456</field>
+ <field id="generic-pin">5678</field>
+</entry>
+
+<entry type="phone">
+ <name>Personal Phone</name>
+ <description>iPhone lock code</description>
+ <updated>1740597819</updated>
+ <notes>Phone access PIN</notes>
+ <field id="phone-phonenumber">+1-555-987-6543</field>
+ <field id="generic-pin">2468</field>
+</entry>
+</entry>
+
+</revelationdata>

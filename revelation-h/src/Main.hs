@@ -18,6 +18,7 @@ import qualified Revelation2
 -- base
 import           Control.Exception (try)
 import           Control.Monad (when)
+import           System.Environment (getArgs, getProgName)
 
 -- bytestring
 import qualified Data.ByteString as B
@@ -42,20 +43,31 @@ import           Control.Monad.Except (runExceptT)
 -- text
 import qualified Data.Text.Encoding as TE
 
+printUsage :: IO ()
+printUsage = do
+    pn <- getProgName
+    error $ "Usage: " ++ pn ++ " [--xml decodedFile]"
+
 main :: IO ()
 main = do
-  -- input <- BL.readFile "example.xml"
-  -- mbEntries <- runExceptT $ RevelationXML.parseEntries input
-  -- entries <- case mbEntries of
-  --   Left msg -> do
-  --     putStrLn $ "Error: " <> msg
-  --     return []
-  --   Right entries -> return entries
+  args <- getArgs
+  entries <- case args of
+    [] -> return []
+    ["--help"] -> printUsage >> return []
+    ["--xml", xmlFile] -> do
+      input <- BL.readFile xmlFile
+      mbEntries <- runExceptT $ RevelationXML.parseEntries input
+      entries <- case mbEntries of
+        Left msg -> do
+          putStrLn $ "Error: " <> msg
+          return []
+        Right entries -> return entries
+      return entries
+    _ -> printUsage >> return []
 
   runApplicationWindow (ApplicationId "org.gtk.revelation-h") $ do
     infoPane <- GUI.InfoPane.create
-    -- treePane <- GUI.Tree.create entries (infoPane.render)
-    treePane <- GUI.Tree.create [] (infoPane.render)
+    treePane <- GUI.Tree.create entries (infoPane.render)
     pure ApplicationProperties
       { menu = appMenu
       , actions =
