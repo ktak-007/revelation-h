@@ -4,6 +4,8 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
+{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
 module GUI.Window
   ( ApplicationId(..)
@@ -33,6 +35,9 @@ import qualified GI.Gio as Gio
 
 -- gi-gtk
 import qualified GI.Gtk as Gtk
+
+-- gi-gdk
+import qualified GI.Gdk as Gdk
 
 newtype ApplicationId = ApplicationId Text
 data SidebarPage = SidebarPage { title :: Text, content :: Maybe (IO Gtk.Widget) }
@@ -83,6 +88,8 @@ activate app ApplicationProperties {..} = do
     ]
   initActions app actions
 
+  createCss window
+
   window.present
 
 titlebarLeft :: Gio.Menu -> IO Adw.HeaderBar
@@ -112,3 +119,26 @@ sidebarScrolled content = new Gtk.ScrolledWindow
   , #hscrollbarPolicy := Gtk.PolicyTypeNever
   , #marginStart := 4
   ]
+
+createCss :: Adw.ApplicationWindow -> IO ()
+createCss window = do
+  css <- Gtk.cssProviderNew
+  Gtk.cssProviderLoadFromString css ".dark-mode image.invert-required { filter: invert(1); }"
+
+  Gdk.displayGetDefault >>= \case
+    Just d -> do
+      Gtk.styleContextAddProviderForDisplay d css $ fromIntegral Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+      styleManager <- Adw.styleManagerGetDefault
+      setThemedClass window
+      on styleManager #notify $ pure $ setThemedClass window
+      return ()
+
+    Nothing -> error "No display found!"
+
+setThemedClass :: Adw.ApplicationWindow -> IO ()
+setThemedClass window = do
+  styleManager <- Adw.styleManagerGetDefault
+  dark <- Adw.styleManagerGetDark styleManager
+  ctx <- window.getStyleContext
+  if dark then ctx.addClass "dark-mode"
+          else ctx.removeClass "dark-mode"

@@ -12,6 +12,7 @@ let
   haskellWithPackages = haskell.ghcWithPackages (hpkgs: with hpkgs; [
     haskell-gi-base
     gi-adwaita
+    gi-gdk
     gi-gtk
     gi-gio
   ]);

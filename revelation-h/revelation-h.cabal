@@ -65,6 +65,7 @@ executable revelation-h
     other-modules:    GUI.About
                     , GUI.Actions
                     , GUI.InfoPane
+                    , GUI.Icons
                     , GUI.Menu
                     , GUI.Tree
                     , GUI.Window
@@ -74,10 +75,11 @@ executable revelation-h
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.20.2.0
-                    , async
                     , lib-revelation-h
                     , bytestring
+                    , file-embed
                     , gi-adwaita
+                    , gi-gdk
                     , gi-gio
                     , gi-glib
                     , gi-gobject
@@ -85,6 +87,7 @@ executable revelation-h
                     , haskell-gi-base
                     , mtl
                     , Hclip
+                    , template-haskell
                     , text
 
     -- Directories containing source files.

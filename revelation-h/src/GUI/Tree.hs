@@ -7,11 +7,13 @@
 
 module GUI.Tree ( create, TreePane(..) ) where
 
-import RevelationXML
+import           RevelationXML
+import qualified GUI.Icons
 
+-- base
 import           Data.Foldable ( for_, traverse_ )
 import           Data.Maybe ( fromJust )
-import           GHC.Stack (HasCallStack)
+import           GHC.Stack ( HasCallStack )
 
 -- haskell-gi-base
 import           Data.GI.Base
@@ -113,7 +115,7 @@ create' entries callback = do
     False                      -- Must not use passthrough to use TreeExpander widgets.
     False                      -- Not autoexpand on creation
     getChildrenFunc
-  
+
   factory <- Gtk.signalListItemFactoryNew
 
   on factory #setup $ \item -> do
@@ -126,16 +128,24 @@ create' entries callback = do
     Gtk.treeExpanderSetIndentForDepth expander True
     Gtk.treeExpanderSetHideExpander   expander False
 
-    contentBox <- new Gtk.Box [ #orientation := Gtk.OrientationHorizontal
-                              , #spacing := 6
-                              ]
+    contentBox <- new Gtk.Box
+      [ #orientation := Gtk.OrientationHorizontal
+      , #spacing := 6
+      ]
     Gtk.treeExpanderSetChild expander ( Just contentBox )
+
+    icon <- new Gtk.Image
+      [ #iconSize := Gtk.IconSizeNormal
+      , #marginEnd := 0
+      , #cssClasses := [ "invert-required" ]
+      ]
+    Gtk.boxAppend contentBox icon
 
     label <- new Gtk.Label
       [ #xalign := 0
       , #marginTop := 8
       , #marginBottom := 8
-      , #marginStart := 4
+      , #marginStart := 0
       , #marginEnd := 24
       ]
     Gtk.boxAppend contentBox label
@@ -149,14 +159,17 @@ create' entries callback = do
         Nothing -> error "getTreeView onBind: list item has no child"
         Just expander' -> unsafeCastTo Gtk.TreeExpander expander'
     mbContentBox <- Gtk.treeExpanderGetChild expander
-    label <- case mbContentBox of
+    (icon, label) <- case mbContentBox of
       Nothing -> error "getTreeView: expected ListItem->Expander->Box"
       Just contentBox0 -> do
         contentBox <- unsafeCastTo Gtk.Box contentBox0
-        mbLabel <- traverse ( unsafeCastTo Gtk.Label ) =<< Gtk.widgetGetFirstChild contentBox
-        case mbLabel of
-          Nothing -> error "getLayerViewWidget: expected ListItem->Expander->Box->{CheckButton,LayerLabel}"
-          Just label -> return label
+        mbIcon <- traverse ( unsafeCastTo Gtk.Image ) =<< Gtk.widgetGetFirstChild contentBox
+        mbLabel <- case mbIcon of
+          Nothing -> return Nothing
+          Just iconWidget -> traverse ( unsafeCastTo Gtk.Label ) =<< Gtk.widgetGetNextSibling iconWidget
+        case (mbIcon, mbLabel) of
+          (Just icon, Just label) -> return (icon, label)
+          _ -> error "getLayerViewWidget: expected ListItem->Expander->Box->{Image,Label}"
     entry <- getEntry listItem
     mbTreeListRow <- traverse ( unsafeCastTo Gtk.TreeListRow ) =<< Gtk.listItemGetItem listItem
     treeListRow <- case mbTreeListRow of
@@ -164,6 +177,18 @@ create' entries callback = do
       Just r -> return r
     Gtk.treeExpanderSetListRow expander ( Just treeListRow )
     Gtk.labelSetText label entry.name
+
+    let updateIcon expanded =
+          Gtk.imageSetFromPaintable icon =<< GUI.Icons.create entry expanded
+
+    -- Set initial icon
+    updateIcon False
+
+    case entry of
+      Folder {} -> do
+        on treeListRow #notify $ pure $ updateIcon =<< get treeListRow #expanded
+        pure ()
+      _ -> pure ()
 
   selection <- new Gtk.SingleSelection
     [ #model := treeModel
