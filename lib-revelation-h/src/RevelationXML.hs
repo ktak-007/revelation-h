@@ -144,6 +144,15 @@ data Entry = Generic    { name :: Text
                         , password :: Text
                         , database :: Text
                         }
+           | Ftp        { name :: Text
+                        , description :: Text
+                        , updated :: Integer
+                        , notes :: Text
+                        , hostname :: Text
+                        , port :: Text
+                        , username :: Text
+                        , password :: Text
+                        }
            deriving (Data, Show)
 
 parseEntries :: BL.ByteString -> ExceptT Error.Msg IO [Entry]
@@ -182,6 +191,7 @@ parseEntry node = do
     "door" -> Right $ Door {..}
     "cryptokey" -> Right $ Cryptokey {..}
     "database" -> Right $ Database {..}
+    "ftp" -> Right $ Ftp {..}
     etype -> Left $ Error.xmlUnknownEntryType <> " \"" <> unpack etype <> "\""
   where
   description = T.concat $ node $/ element "description" &/ content

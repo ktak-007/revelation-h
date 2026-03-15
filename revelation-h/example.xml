@@ -107,6 +107,17 @@
  <field id="generic-database">maindb</field>
 </entry>
 
+<entry type="ftp">
+ <name>My FTP</name>
+ <description>FTP server credentials</description>
+ <updated>1773538129</updated>
+ <notes></notes>
+ <field id="generic-hostname">ftp.example.com</field>
+ <field id="generic-port">123</field>
+ <field id="generic-username">ftp_user</field>
+ <field id="generic-password">ftp_password</field>
+</entry>
+
 <entry type="folder">
  <name>Work Accounts</name>
  <description>Work-related credentials</description>

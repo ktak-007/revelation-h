@@ -333,6 +333,11 @@ renderEntry (RenderParams entry RenderFunctions {..}) = case entry of
     username ? field "Username"
     password ? hidden "Password"
     database ? field "Database"
+  Ftp {..} -> do
+    hostname ? field "Hostname"
+    port ? field "Port"
+    username ? field "Username"
+    password ? hidden "Password"
   where
   field = addField
   hidden = addHidden
