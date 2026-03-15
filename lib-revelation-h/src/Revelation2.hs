@@ -155,10 +155,10 @@ encrypt' input salt iv password = do
       padlen = 16 - (B.length compressedInput `mod` 16)
       padding = B.replicate padlen $ fromIntegral padlen
       dataToEncode = compressedInput <> padding
-      digest = digestToByteString $ hashWith SHA256 dataToEncode
+      digest = digestToBS $ hashWith SHA256 dataToEncode
   return $ BL.fromStrict
          $ header <> salt <> iv <>
            cbcEncrypt cipher initialVector (digest <> dataToEncode)
 
-digestToByteString :: Digest SHA256 -> B.ByteString
-digestToByteString = B.pack . BA.unpack
+digestToBS :: Digest SHA256 -> B.ByteString
+digestToBS = BA.convert
