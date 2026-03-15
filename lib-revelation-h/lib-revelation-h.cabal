@@ -74,7 +74,7 @@ library
                     , binary
                     , bytestring
                     , containers
-                    , crypton
+                    , crypton < 1.1.0
                     , memory
                     , mtl
                     , text
