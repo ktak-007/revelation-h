@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -29,6 +30,10 @@ import qualified GI.Gio as Gio
 
 -- gi-gobject
 import qualified GI.GObject as GObject
+
+-- transformers
+import           Control.Monad.Trans.Maybe
+
 
 data TreePane = TreePane
   { view :: Gtk.ListView
@@ -85,7 +90,7 @@ getChildrenFunc parent = do
 
 create :: [Entry] -> (Entry -> IO ()) -> IO TreePane
 create entries callback = do
-  treeView <- create' entries callback
+  treeView <- getTreeView entries callback
   let loadNewData newEntries = do
         -- model <- get treeView #model
         mbSelectionModel <- Gtk.listViewGetModel treeView
@@ -106,8 +111,8 @@ create entries callback = do
                   , update = loadNewData
                   }
 
-create' :: [Entry] -> (Entry -> IO ()) -> IO Gtk.ListView
-create' entries callback = do
+getTreeView :: [Entry] -> (Entry -> IO ()) -> IO Gtk.ListView
+getTreeView entries callback = do
   rootModel <- Gio.toListModel =<< makeListStore entries
 
   treeModel <- Gtk.treeListModelNew
@@ -154,32 +159,29 @@ create' entries callback = do
 
   on factory #bind $ \item -> do
     listItem <- unsafeCastTo Gtk.ListItem item
-    mbExpander <- #getChild listItem
-    expander <- case mbExpander of
-        Nothing -> error "getTreeView onBind: list item has no child"
-        Just expander' -> unsafeCastTo Gtk.TreeExpander expander'
-    mbContentBox <- Gtk.treeExpanderGetChild expander
-    (icon, label) <- case mbContentBox of
-      Nothing -> error "getTreeView: expected ListItem->Expander->Box"
-      Just contentBox0 -> do
-        contentBox <- unsafeCastTo Gtk.Box contentBox0
-        mbIcon <- traverse ( unsafeCastTo Gtk.Image ) =<< Gtk.widgetGetFirstChild contentBox
-        mbLabel <- case mbIcon of
-          Nothing -> return Nothing
-          Just iconWidget -> traverse ( unsafeCastTo Gtk.Label ) =<< Gtk.widgetGetNextSibling iconWidget
-        case (mbIcon, mbLabel) of
-          (Just icon, Just label) -> return (icon, label)
-          _ -> error "getLayerViewWidget: expected ListItem->Expander->Box->{Image,Label}"
-    entry <- getEntry listItem
-    mbTreeListRow <- traverse ( unsafeCastTo Gtk.TreeListRow ) =<< Gtk.listItemGetItem listItem
-    treeListRow <- case mbTreeListRow of
-      Nothing -> error "newLayerView ListItem onBind: no TreeListRow"
-      Just r -> return r
-    Gtk.treeExpanderSetListRow expander ( Just treeListRow )
-    Gtk.labelSetText label entry.name
 
-    let updateIcon expanded =
-          Gtk.imageSetFromPaintable icon =<< GUI.Icons.create entry expanded
+    expander <- #getChild listItem >>= \case
+      Nothing -> error "getTreeView onBind: list item has no child"
+      Just expander' -> unsafeCastTo Gtk.TreeExpander expander'
+
+    treeListRow <- Gtk.listItemGetItem listItem >>= traverse ( unsafeCastTo Gtk.TreeListRow ) >>= \case
+      Nothing -> error "getTreeView ListItem onBind: no TreeListRow"
+      Just r -> return r
+
+    Gtk.treeExpanderSetListRow expander ( Just treeListRow )
+
+    entry <- getEntry listItem
+
+    mbUpdateIcon <- runMaybeT $ do
+      contentBox <- MaybeT $ traverse ( unsafeCastTo Gtk.Box )   =<< Gtk.treeExpanderGetChild expander
+      icon       <- MaybeT $ traverse ( unsafeCastTo Gtk.Image ) =<< Gtk.widgetGetFirstChild  contentBox
+      label      <- MaybeT $ traverse ( unsafeCastTo Gtk.Label ) =<< Gtk.widgetGetNextSibling icon
+      set label [ #label := entry.name ]
+      return $ \expanded -> Gtk.imageSetFromPaintable icon =<< GUI.Icons.create entry expanded
+
+    updateIcon <- case mbUpdateIcon of
+      Nothing -> error "getTreeView: expected ListItem->Expander->Box->{Image,Label}"
+      Just updateIcon -> return updateIcon
 
     -- Set initial icon
     updateIcon False

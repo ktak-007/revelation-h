@@ -89,6 +89,7 @@ executable revelation-h
                     , Hclip
                     , template-haskell
                     , text
+                    , transformers
 
     -- Directories containing source files.
     hs-source-dirs:   src
