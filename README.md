@@ -19,3 +19,11 @@ To build, you have to have Nix package manager installed: https://nixos.org/down
 ## Running a project
 
 Call the command `cabal run <subproject>`.
+
+## Revelation-H
+
+Revelation-H is the main goal of the project.
+
+Look at the [directory revelation-h](./revelation-h/).
+
+![Screenshot](revelation-h/screenshot.png)
