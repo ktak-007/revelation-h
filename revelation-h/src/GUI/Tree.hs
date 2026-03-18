@@ -12,6 +12,7 @@ import           RevelationXML
 import qualified GUI.Icons
 
 -- base
+import           Control.Monad.IO.Class ( liftIO )
 import           Data.Foldable ( for_, traverse_ )
 import           Data.Maybe ( fromJust )
 import           GHC.Stack ( HasCallStack )
@@ -91,25 +92,31 @@ getChildrenFunc parent = do
 create :: [Entry] -> (Entry -> IO ()) -> IO TreePane
 create entries callback = do
   treeView <- getTreeView entries callback
+  store    <- getStoreFromTreeView treeView
   let loadNewData newEntries = do
-        -- model <- get treeView #model
-        mbSelectionModel <- Gtk.listViewGetModel treeView
-        whenJust mbSelectionModel $ \selectionModel -> do
-          mbListModel <- Gtk.singleSelectionGetModel =<< unsafeCastTo Gtk.SingleSelection selectionModel
-          whenJust mbListModel $ \listModel -> do
-            rootModel <- Gtk.treeListModelGetModel =<< unsafeCastTo Gtk.TreeListModel listModel
-            store <- unsafeCastTo Gio.ListStore rootModel
-            Gio.listStoreRemoveAll store
-            for_ newEntries $ \entry -> do
-              item <- unsafeCastTo TreeNodeItem =<< new TreeNodeItem []
-              gobjectSetPrivateData item ( Just entry )
-              Gio.listStoreAppend store item
-            return ()
-          return ()
-        return ()
+        Gio.listStoreRemoveAll store
+        for_ newEntries $ \entry -> do
+          item <- unsafeCastTo TreeNodeItem =<< new TreeNodeItem []
+          gobjectSetPrivateData item ( Just entry )
+          Gio.listStoreAppend store item
+
   return TreePane { view = treeView
                   , update = loadNewData
                   }
+
+getStoreFromTreeView :: Gtk.ListView -> IO Gio.ListStore
+getStoreFromTreeView treeView = do
+  mbStore <- runMaybeT $ do
+    selectionModel  <- MaybeT $ get treeView #model
+    singleSelection <- MaybeT $ castTo Gtk.SingleSelection selectionModel
+    listModel       <- MaybeT $ get singleSelection #model
+    treeListModel   <- MaybeT $ castTo Gtk.TreeListModel listModel
+    rootModel       <- liftIO $ get treeListModel #model
+    store           <- MaybeT $ castTo Gio.ListStore rootModel
+    pure store
+  case mbStore of
+    Just store -> return store
+    _ -> error "getStoreFromTreeView: Store not found"
 
 getTreeView :: [Entry] -> (Entry -> IO ()) -> IO Gtk.ListView
 getTreeView entries callback = do
