@@ -16,6 +16,12 @@ To build, you have to have Nix package manager installed: https://nixos.org/down
 1. Run `nix-shell` in the root project directory. It will prepare you environment: install Haskell, cabal and required libraries.
 2. Run `cabal build <subproject>` or `cabal build all`.
 
+## Development
+
+1. Install [Nix package manager](https://nixos.org/download/#download-nix)
+2. Run `nix-shell` - all required soft will be installed
+3. Run `cabal build <subproject>`
+
 ## Running a project
 
 Call the command `cabal run <subproject>`.
