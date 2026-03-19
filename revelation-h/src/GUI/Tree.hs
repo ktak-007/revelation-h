@@ -12,6 +12,7 @@ import           RevelationXML
 import qualified GUI.Icons
 
 -- base
+import           Control.Monad ( when )
 import           Control.Monad.IO.Class ( liftIO )
 import           Data.Foldable ( for_, traverse_ )
 import           Data.Maybe ( fromJust )
@@ -69,36 +70,35 @@ makeListStore entries = do
   for_ entries $ \entry -> do
     item <- unsafeCastTo TreeNodeItem =<< new TreeNodeItem []
     gobjectSetPrivateData item ( Just entry )
-    Gio.listStoreAppend store item
+    store.append item
 
   return store
 
 getChildrenFunc :: GObject.Object -> IO ( Maybe Gio.ListModel )
 getChildrenFunc parent = do
   entry <- getEntry =<< unsafeCastTo TreeNodeItem parent
-  case entry of
-    Folder {} -> getChildModel entry
-    _ -> return Nothing
+  when' (isFolder entry) $ getChildModel entry
   where
   getChildModel node = do
     childStore <- Gio.listStoreNew =<< glibType @TreeNodeItem
     for_ (children node) $ \child -> do
       item <- unsafeCastTo TreeNodeItem =<< new TreeNodeItem []
       gobjectSetPrivateData item ( Just child )
-      Gio.listStoreAppend childStore item
+      childStore.append item
     childListModel <- Gio.toListModel childStore
-    return $ Just childListModel
+    return childListModel
+  when' cond action = if cond then Just <$> action else return Nothing
 
 create :: [Entry] -> (Entry -> IO ()) -> IO TreePane
 create entries callback = do
   treeView <- getTreeView entries callback
   store    <- getStoreFromTreeView treeView
   let loadNewData newEntries = do
-        Gio.listStoreRemoveAll store
+        store.removeAll
         for_ newEntries $ \entry -> do
           item <- unsafeCastTo TreeNodeItem =<< new TreeNodeItem []
           gobjectSetPrivateData item ( Just entry )
-          Gio.listStoreAppend store item
+          store.append item
 
   return TreePane { view = treeView
                   , update = loadNewData
@@ -144,14 +144,14 @@ getTreeView entries callback = do
       [ #orientation := Gtk.OrientationHorizontal
       , #spacing := 6
       ]
-    Gtk.treeExpanderSetChild expander ( Just contentBox )
+    expander.setChild $ Just contentBox
 
     icon <- new Gtk.Image
       [ #iconSize := Gtk.IconSizeNormal
       , #marginEnd := 0
       , #cssClasses := [ "invert-required" ]
       ]
-    Gtk.boxAppend contentBox icon
+    contentBox.append icon
 
     label <- new Gtk.Label
       [ #xalign := 0
@@ -160,9 +160,9 @@ getTreeView entries callback = do
       , #marginStart := 0
       , #marginEnd := 24
       ]
-    Gtk.boxAppend contentBox label
+    contentBox.append label
 
-    #setChild listItem (Just expander)
+    listItem.setChild $ Just expander
 
   on factory #bind $ \item -> do
     listItem <- unsafeCastTo Gtk.ListItem item
@@ -175,7 +175,7 @@ getTreeView entries callback = do
       Nothing -> error "getTreeView ListItem onBind: no TreeListRow"
       Just r -> return r
 
-    Gtk.treeExpanderSetListRow expander ( Just treeListRow )
+    expander.setListRow $ Just treeListRow
 
     entry <- getEntry listItem
 
@@ -184,7 +184,7 @@ getTreeView entries callback = do
       icon       <- MaybeT $ traverse ( unsafeCastTo Gtk.Image ) =<< Gtk.widgetGetFirstChild  contentBox
       label      <- MaybeT $ traverse ( unsafeCastTo Gtk.Label ) =<< Gtk.widgetGetNextSibling icon
       set label [ #label := entry.name ]
-      return $ \expanded -> Gtk.imageSetFromPaintable icon =<< GUI.Icons.create entry expanded
+      return $ \expanded -> icon.setFromPaintable =<< GUI.Icons.create entry expanded
 
     updateIcon <- case mbUpdateIcon of
       Nothing -> error "getTreeView: expected ListItem->Expander->Box->{Image,Label}"
@@ -193,11 +193,9 @@ getTreeView entries callback = do
     -- Set initial icon
     updateIcon False
 
-    case entry of
-      Folder {} -> do
-        on treeListRow #notify $ pure $ updateIcon =<< get treeListRow #expanded
-        pure ()
-      _ -> pure ()
+    when (isFolder entry) $ do
+      on treeListRow #notify $ pure $ updateIcon =<< get treeListRow #expanded
+      pure ()
 
   selection <- new Gtk.SingleSelection
     [ #model := treeModel
@@ -209,7 +207,6 @@ getTreeView entries callback = do
     mItem <- get selection #selectedItem
     whenJust mItem $ \item -> do
       entry <- getEntry =<< unsafeCastTo Gtk.TreeListRow item
-      -- print entry
       callback entry
 
   treeView <- new Gtk.ListView
@@ -263,6 +260,11 @@ makeTreeViewTransparent treeView = do
   styleContext <- treeView.getStyleContext
   styleContext.addProvider cssProvider $ fromIntegral Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
   styleContext.addClass "transparent"
+
+isFolder :: Entry -> Bool
+isFolder entry = case entry of
+      Folder {} -> True
+      _         -> False
 
 -- debugWidgetType :: Gtk.Widget -> IO ()
 -- debugWidgetType w = do
