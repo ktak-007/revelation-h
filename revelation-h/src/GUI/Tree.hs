@@ -1,22 +1,18 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
 module GUI.Tree ( create, TreePane(..) ) where
 
+import           Definitions
 import           RevelationXML
 import qualified GUI.Icons
 
+-- rio
+import           RIO hiding (on, set, view)
+
 -- base
-import           Control.Monad ( when )
-import           Control.Monad.IO.Class ( liftIO )
-import           Data.Foldable ( for_, traverse_ )
 import           Data.Maybe ( fromJust )
-import           GHC.Stack ( HasCallStack )
 
 -- haskell-gi-base
 import           Data.GI.Base
@@ -64,8 +60,8 @@ instance DerivedGObject TreeNodeItem where
   objectInstanceInit _ _ = return Nothing
   objectInterfaces = [ ]
 
-makeListStore :: [Entry] -> IO Gio.ListStore
-makeListStore entries = do
+makeListStore :: [Entry] -> RIO App Gio.ListStore
+makeListStore entries = liftIO $ do
   store <- Gio.listStoreNew =<< glibType @TreeNodeItem
   for_ entries $ \entry -> do
     item <- unsafeCastTo TreeNodeItem =<< new TreeNodeItem []
@@ -89,7 +85,7 @@ getChildrenFunc parent = do
     return childListModel
   when' cond action = if cond then Just <$> action else return Nothing
 
-create :: [Entry] -> (Entry -> IO ()) -> IO TreePane
+create :: [Entry] -> (Entry -> IO ()) -> RIO App TreePane
 create entries callback = do
   treeView <- getTreeView entries callback
   store    <- getStoreFromTreeView treeView
@@ -104,8 +100,8 @@ create entries callback = do
                   , update = loadNewData
                   }
 
-getStoreFromTreeView :: Gtk.ListView -> IO Gio.ListStore
-getStoreFromTreeView treeView = do
+getStoreFromTreeView :: Gtk.ListView -> RIO App Gio.ListStore
+getStoreFromTreeView treeView = liftIO $ do
   mbStore <- runMaybeT $ do
     selectionModel  <- MaybeT $ get treeView #model
     singleSelection <- MaybeT $ castTo Gtk.SingleSelection selectionModel
@@ -118,7 +114,7 @@ getStoreFromTreeView treeView = do
     Just store -> return store
     _ -> error "getStoreFromTreeView: Store not found"
 
-getTreeView :: [Entry] -> (Entry -> IO ()) -> IO Gtk.ListView
+getTreeView :: [Entry] -> (Entry -> IO ()) -> RIO App Gtk.ListView
 getTreeView entries callback = do
   rootModel <- Gio.toListModel =<< makeListStore entries
 
@@ -250,7 +246,7 @@ treeListRowLayerItem listRow = do
     Nothing   -> error "treeListRowLayerItem: TreeListRow has no item"
     Just item -> unsafeCastTo TreeNodeItem item
 
-makeTreeViewTransparent :: Gtk.ListView -> IO ()
+makeTreeViewTransparent :: Gtk.ListView -> RIO App ()
 makeTreeViewTransparent treeView = do
   cssProvider <- new Gtk.CssProvider []
   cssClasses <- Gtk.getWidgetCssClasses treeView

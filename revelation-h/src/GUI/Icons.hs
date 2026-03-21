@@ -1,14 +1,11 @@
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module GUI.Icons ( create ) where
 
 import           RevelationXML
 
--- bytestring
-import           Data.ByteString (ByteString)
+-- rio
+import           RIO
 
 -- file-embed
 import           Data.FileEmbed (embedFile, makeRelativeToProject)
@@ -18,6 +15,7 @@ import qualified GI.GLib as GLib
 
 -- gi-gdk
 import qualified GI.Gdk as Gdk
+
 
 getIcon:: Entry -> Bool -> Maybe ByteString
 getIcon Folder {} False = Just $(embedFile =<< makeRelativeToProject "icons/folder-symbolic.svg")

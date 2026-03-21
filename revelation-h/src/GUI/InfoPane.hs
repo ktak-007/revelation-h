@@ -1,8 +1,4 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module GUI.InfoPane
@@ -10,7 +6,14 @@ module GUI.InfoPane
   , create
   ) where
 
+import           Definitions
 import           RevelationXML (Entry(..))
+
+-- rio
+import           RIO hiding (Text, link, on, set)
+
+-- base
+import           Data.Data (showConstr)
 
 -- gi-adwaita
 import qualified GI.Adw as Adw
@@ -32,10 +35,7 @@ import qualified Data.Text as T
 -- Hclip
 import           System.Hclip (setClipboard)
 
--- base
-import           Control.Monad (unless)
-import           Data.Data (Data, toConstr, showConstr)
-import           Data.Int (Int64)
+
 
 data InfoPane = InfoPane
   { view   :: Gtk.CenterBox
@@ -52,7 +52,7 @@ data RenderFunctions = RenderFunctions
 
 data RenderParams = RenderParams Entry RenderFunctions
 
-create :: IO InfoPane
+create :: RIO App InfoPane
 create = do
   content <- new Gtk.Box
     [ #orientation := Gtk.OrientationVertical

@@ -1,7 +1,3 @@
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# OPTIONS_GHC -Wno-unused-do-bind #-}
-
 module GUI.Actions
   ( Action(..)
   , ActionName
@@ -11,7 +7,12 @@ module GUI.Actions
   , (>==)
   ) where
 
-import           Data.Foldable ( for_ )
+import           Definitions
+
+-- rio
+import           RIO hiding (Text, on)
+
+-- text
 import           Data.Text (Text, pack)
 
 -- haskell-gi-base
@@ -22,6 +23,7 @@ import qualified GI.Adw as Adw
 
 -- gi-gio
 import qualified GI.Gio as Gio
+
 
 data Action = FILE_NEW
             | FILE_OPEN
@@ -34,21 +36,22 @@ data Action = FILE_NEW
             | APP_ABOUT
             deriving (Show)
 
-type Operation = Adw.Application -> IO ()
+type Operation = Adw.Application -> RIO App ()
 type ActionName = Text
 type Actions = [(ActionName, Operation)]
 
 
-initActions :: Adw.Application -> Actions -> IO ()
+initActions :: Adw.Application -> Actions -> RIO App ()
 initActions app actions = do
   for_ actions $ \(action, operation) ->
     createAction action operation
   where
-  createAction :: ActionName -> Operation -> IO ()
-  createAction action callback = do
-    action' <- Gio.simpleActionNew action Nothing
-    on action' #activate $ const $ callback app
-    app.addAction action'
+  createAction :: ActionName -> Operation -> RIO App ()
+  createAction actionName callback = do
+    appInfo <- ask
+    action <- Gio.simpleActionNew actionName Nothing
+    on action #activate $ const $ runRIO appInfo $ callback app
+    app.addAction action
 
 showt :: Show a => a -> Text
 showt o = pack $ show o

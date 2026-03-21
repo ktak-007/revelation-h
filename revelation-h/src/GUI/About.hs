@@ -1,13 +1,9 @@
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module GUI.About
   ( showAboutDialog
   ) where
 
--- text
-import           Data.Text (Text)
+-- rio
+import           RIO
 
 -- haskell-gi-base
 import           Data.GI.Base

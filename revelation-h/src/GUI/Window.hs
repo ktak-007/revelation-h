@@ -1,28 +1,24 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ImplicitParams #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
-{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
 module GUI.Window
-  ( ApplicationId(..)
-  , ApplicationProperties(..)
+  ( ApplicationProperties(..)
   , SidebarPage(..)
   , ContentPage(..)
   , runApplicationWindow
   ) where
 
+import           Definitions
 import           GUI.Actions
 import           GUI.Menu
 
-import           Control.Monad (void, when)
-import           Data.Maybe (isJust, fromJust)
+-- rio
+import           RIO hiding (on, set)
 
--- text
-import           Data.Text (Text)
+-- base
+import           Data.Maybe (fromJust)
 
 -- haskell-gi-base
 import           Data.GI.Base
@@ -39,7 +35,7 @@ import qualified GI.Gtk as Gtk
 -- gi-gdk
 import qualified GI.Gdk as Gdk
 
-newtype ApplicationId = ApplicationId Text
+
 data SidebarPage = SidebarPage { title :: Text, content :: Maybe (IO Gtk.Widget) }
 data ContentPage = ContentPage { title :: Text, subtitle :: Maybe Text, content :: Maybe (IO Gtk.Widget) }
 
@@ -50,15 +46,16 @@ data ApplicationProperties = ApplicationProperties
   , content :: ContentPage
   }
 
-runApplicationWindow :: ApplicationId -> (IO ApplicationProperties) -> IO ()
-runApplicationWindow (ApplicationId applicationId) getAppProps = do
+runApplicationWindow :: (RIO App ApplicationProperties) -> RIO App ()
+runApplicationWindow getAppProps = do
+  appInfo <- ask
   app <- new Adw.Application
-    [ #applicationId := applicationId
-    , On #activate (getAppProps >>= activate ?self)
+    [ #applicationId := appInfo.applicationId
+    , On #activate $ runRIO appInfo (getAppProps >>= activate ?self)
     ]
   void $ app.run $ Nothing
 
-activate :: Adw.Application -> ApplicationProperties -> IO ()
+activate :: Adw.Application -> ApplicationProperties -> RIO App ()
 activate app ApplicationProperties {..} = do
   sidebarView <- new Adw.ToolbarView []
   when (isJust sidebar.content) $
@@ -92,7 +89,7 @@ activate app ApplicationProperties {..} = do
 
   window.present
 
-titlebarLeft :: Gio.Menu -> IO Adw.HeaderBar
+titlebarLeft :: Gio.Menu -> RIO App Adw.HeaderBar
 titlebarLeft menu = do
   headerBar <- new Adw.HeaderBar []
 
@@ -101,7 +98,7 @@ titlebarLeft menu = do
                                              ]
   return headerBar
 
-titlebarRight :: Text -> Maybe Text -> IO Adw.HeaderBar
+titlebarRight :: Text -> Maybe Text -> RIO App Adw.HeaderBar
 titlebarRight title subtitle = do
   hb <- new Adw.HeaderBar []
   when (isJust subtitle) $
@@ -120,7 +117,7 @@ sidebarScrolled content = new Gtk.ScrolledWindow
   , #marginStart := 4
   ]
 
-createCss :: Adw.ApplicationWindow -> IO ()
+createCss :: Adw.ApplicationWindow -> RIO App ()
 createCss window = do
   css <- Gtk.cssProviderNew
   Gtk.cssProviderLoadFromString css ".dark-mode image.invert-required { filter: invert(1); }"
@@ -130,12 +127,12 @@ createCss window = do
       Gtk.styleContextAddProviderForDisplay d css $ fromIntegral Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
       styleManager <- Adw.styleManagerGetDefault
       setThemedClass window
-      on styleManager #notify $ pure $ setThemedClass window
+      appInfo <- ask
+      on styleManager #notify $ const $ runRIO appInfo $ setThemedClass window
       return ()
-
     Nothing -> error "No display found!"
 
-setThemedClass :: Adw.ApplicationWindow -> IO ()
+setThemedClass :: Adw.ApplicationWindow -> RIO App ()
 setThemedClass window = do
   styleManager <- Adw.styleManagerGetDefault
   dark <- Adw.styleManagerGetDark styleManager

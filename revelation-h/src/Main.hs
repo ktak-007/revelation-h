@@ -1,24 +1,24 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
 module Main (main) where
 
+import           Definitions
 import qualified GUI.About
 import           GUI.Actions
 import qualified GUI.InfoPane
 import           GUI.Menu
 import qualified GUI.Tree
 import           GUI.Window
+
 import qualified RevelationXML
 import qualified Revelation2
 
 -- base
-import           Control.Exception (try)
-import           Control.Monad (when)
+import           Prelude (print, putStrLn)
 import           System.Environment (getArgs, getProgName)
+
+-- rio
+import           RIO hiding (on, openFile)
 
 -- bytestring
 import qualified Data.ByteString as B
@@ -43,6 +43,11 @@ import           Control.Monad.Except (runExceptT)
 -- text
 import qualified Data.Text.Encoding as TE
 
+appInfo :: App
+appInfo = App
+  { applicationId = "org.gtk.revelation-h"
+  }
+
 printUsage :: IO ()
 printUsage = do
     pn <- getProgName
@@ -58,22 +63,21 @@ main = do
       input <- BL.readFile xmlFile
       mbEntries <- runExceptT $ RevelationXML.parseEntries input
       entries <- case mbEntries of
-        Left msg -> do
-          putStrLn $ "Error: " <> msg
-          return []
+        Left msg -> (putStrLn $ "Error: " <> msg) >> return []
         Right entries -> return entries
       return entries
     _ -> printUsage >> return []
 
-  runApplicationWindow (ApplicationId "org.gtk.revelation-h") $ do
+  runRIO appInfo $ runApplicationWindow $ do
     infoPane <- GUI.InfoPane.create
     treePane <- GUI.Tree.create entries (infoPane.render)
     pure ApplicationProperties
       { menu = appMenu
       , actions =
         [ APP_QUIT >== \app -> app.quit
-        , FILE_OPEN >== \app -> openFileDialog app treePane
-        , APP_ABOUT >== \app -> GUI.About.showAboutDialog app
+        , FILE_OPEN >== \app -> liftIO $ openFileDialog app treePane
+        , FILE_SAVE >== \_ -> saveTmp "tmpfilename"
+        , APP_ABOUT >== \app -> liftIO $ GUI.About.showAboutDialog app
         ]
       , sidebar = SidebarPage
         { title = "Menu"
@@ -170,3 +174,7 @@ withPassword app callback = do
   Adw.dialogPresent dialog =<< Gtk.applicationGetActiveWindow app
 
   Gtk.widgetGrabFocus password >> return ()
+
+saveTmp :: FilePath -> RIO App ()
+saveTmp fileName = do
+  liftIO $ print $ "Save, " <> fileName

@@ -1,18 +1,14 @@
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module GUI.Menu
   ( Menu
   , Section(..)
   , createMenu
-  , initActions
   ) where
 
+import           Definitions
 import           GUI.Actions
 
-import           Data.Foldable ( for_ )
-import           Data.Text ( Text )
+-- rio
+import           RIO
 
 -- haskell-gi-base
 import           Data.GI.Base
@@ -24,7 +20,7 @@ type SectionName = Text
 data Section = Section (Maybe SectionName) [(Text, ActionName)]
 type Menu = [Section]
 
-createMenu :: Menu -> IO Gio.Menu
+createMenu :: Menu -> RIO App Gio.Menu
 createMenu menuSrc = do
   menu <- new Gio.Menu []
   for_ menuSrc $ \(Section sectionName section) -> do
@@ -33,5 +29,5 @@ createMenu menuSrc = do
     menu.appendSection sectionName sectionMenu
   return menu
 
-appendItem :: Gio.Menu -> (Text, ActionName) -> IO ()
+appendItem :: Gio.Menu -> (Text, ActionName) -> RIO App ()
 appendItem sectionMenu (text, action) = sectionMenu.append (Just text) (Just $ "app." <> action)
