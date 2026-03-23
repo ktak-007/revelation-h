@@ -79,6 +79,7 @@ library
                     , mtl
                     , text
                     , xml-conduit
+                    , xml-hamlet
                     , zlib
 
     -- Directories containing source files.

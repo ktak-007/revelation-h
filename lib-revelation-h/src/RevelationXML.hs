@@ -2,10 +2,14 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE QuasiQuotes #-}
 
-module RevelationXML (parse, parseEntries, Entry(..)) where
+module RevelationXML (parse, parseEntries, render, Entry(..)) where
 
 import qualified Error
+
+-- base
+import           Data.Data (Data)
 
 -- bytestring
 import qualified Data.ByteString.Lazy as BL
@@ -24,8 +28,8 @@ import           Text.XML.Cursor
 -- mtl
 import           Control.Monad.Except
 
--- base
-import           Data.Data (Data)
+-- xml-hamlet
+import           Text.Hamlet.XML
 
 parse :: BL.ByteString -> ExceptT Error.Msg IO Document
 parse input = case parseLBS def input of
@@ -237,17 +241,163 @@ parseEntry node = do
       _ -> Left $ Error.xmlElementIsNotSingle <> msgPostfix
   field :: Text -> Text -> Text
   field prefix fieldId = T.concat $ node $/ element "field" >=> "id" `attributeIs` (prefix <> fieldId) &/ content
-  -- cardField :: Text -> Text
-  -- cardField cardId = T.concat $ node $/ element "field" >=> "id" `attributeIs` (cardPrefix <> cardId) &/ content
-  -- phoneField :: Text -> Text
-  -- phoneField phoneId = T.concat $ node $/ element "field" >=> "id" `attributeIs` (phonePrefix <> phoneId) &/ content
-  -- requireField :: Text -> Text -> Text -> Either Error.Msg Text
-  -- requireField genId etype ename = do
-  --   let msgPostfix = ": field with attribute " <> unpack genPrefix <> unpack genId <> " in entry type=\"" <> unpack etype <> "\" name=\"" <> unpack ename <> "\""
-  --   case node $/ laxElement "field" >=> "id" `attributeIs` (genPrefix <> genId) &/ content of
-  --     [x] -> Right x
-  --     [] -> Left $ Error.xmlElementIsAbsent <> msgPostfix
-  --     _ -> Left $ Error.xmlElementIsNotSingle <> msgPostfix
+
   genPrefix = "generic-"
   cardPrefix = "creditcard-"
   phonePrefix = "phone-"
+
+entryToDoc :: Entry -> [Node]
+entryToDoc Generic {..} =
+  [xml|
+    <entry type="generic">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="generic-hostname">#{hostname}
+      <field id="generic-username">#{username}
+      <field id="generic-password">#{password}
+  |]
+entryToDoc Website {..} =
+  [xml|
+    <entry type="website">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="generic-url">#{url}
+      <field id="generic-username">#{username}
+      <field id="generic-email">#{email}
+      <field id="generic-password">#{password}
+  |]
+entryToDoc Folder {..} =
+  [xml|
+    <entry type="folder">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      $forall c <- children
+        ^{entryToDoc c}
+  |]
+entryToDoc Vnc {..} =
+  [xml|
+    <entry type="vnc">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="generic-hostname">#{hostname}
+      <field id="generic-port">#{port}
+      <field id="generic-username">#{username}
+      <field id="generic-password">#{password}
+  |]
+entryToDoc Shell {..} =
+  [xml|
+    <entry type="shell">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="generic-hostname">#{hostname}
+      <field id="generic-domain">#{domain}
+      <field id="generic-username">#{username}
+      <field id="generic-password">#{password}
+  |]
+entryToDoc Email {..} =
+  [xml|
+    <entry type="email">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="generic-email">#{email}
+      <field id="generic-hostname">#{hostname}
+      <field id="generic-username">#{username}
+      <field id="generic-password">#{password}
+  |]
+entryToDoc Creditcard {..} =
+  [xml|
+    <entry type="creditcard">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="creditcard-cardtype">#{cardtype}
+      <field id="creditcard-cardnumber">#{cardnumber}
+      <field id="creditcard-expirydate">#{expirydate}
+      <field id="creditcard-ccv">#{cardccv}
+      <field id="generic-pin">#{pin}
+  |]
+entryToDoc Phone {..} =
+  [xml|
+    <entry type="phone">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="phone-phonenumber">#{phonenumber}
+      <field id="generic-pin">#{pin}
+  |]
+entryToDoc Door {..} =
+  [xml|
+    <entry type="door">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="generic-location">#{location}
+      <field id="generic-code">#{code}
+   |]
+entryToDoc Cryptokey {..} =
+  [xml|
+    <entry type="cryptokey">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="generic-hostname">#{hostname}
+      <field id="generic-certificate">#{certificate}
+      <field id="generic-keyfile">#{keyfile}
+      <field id="generic-password">#{password}
+   |]
+entryToDoc Database {..} =
+  [xml|
+    <entry type="database">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="generic-hostname">#{hostname}
+      <field id="generic-username">#{username}
+      <field id="generic-password">#{password}
+      <field id="generic-database">#{database}
+    |]
+entryToDoc Ftp {..} =
+  [xml|
+    <entry type="ftp">
+      <name>#{name}
+      <description>#{description}
+      <updated>#{T.show updated}
+      <notes>#{notes}
+      <field id="generic-hostname">#{hostname}
+      <field id="generic-port">#{port}
+      <field id="generic-username">#{username}
+      <field id="generic-password">#{password}
+  |]
+
+entriesToDoc :: [Entry] -> Document
+entriesToDoc entries = do
+  case docXml of
+    [NodeElement root] -> Document (Prologue [] Nothing []) root []
+    _ -> error "Can't create XML"
+  where
+  docXml =
+    [xml|
+      <revelationdata version="0.5.5" dataversion="1">
+        $forall e <- entries
+          ^{entryToDoc e}
+    |]
+
+render :: [Entry] -> BL.ByteString
+render entries = renderLBS def $ entriesToDoc entries
