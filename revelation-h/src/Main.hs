@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Main (main) where
 
@@ -14,11 +15,12 @@ import qualified RevelationXML
 import qualified Revelation2
 
 -- base
-import           Prelude (print, putStrLn)
+import           Prelude (putStrLn)
 import           System.Environment (getArgs, getProgName)
 
 -- rio
-import           RIO hiding (on, openFile)
+import           RIO hiding (on, openFile, set)
+import qualified RIO.ByteString.Lazy as RBL
 
 -- bytestring
 import qualified Data.ByteString as B
@@ -43,10 +45,6 @@ import           Control.Monad.Except (runExceptT)
 -- text
 import qualified Data.Text.Encoding as TE
 
-appInfo :: App
-appInfo = App
-  { applicationId = "org.gtk.revelation-h"
-  }
 
 printUsage :: IO ()
 printUsage = do
@@ -68,6 +66,11 @@ main = do
       return entries
     _ -> printUsage >> return []
 
+  openedFile <- newTVarIO Nothing
+  let appInfo = App
+        { applicationId = "org.gtk.revelation-h"
+        , openedFile = openedFile
+        }
   runRIO appInfo $ runApplicationWindow $ do
     infoPane <- GUI.InfoPane.create
     treePane <- GUI.Tree.create entries (infoPane.render)
@@ -75,8 +78,8 @@ main = do
       { menu = appMenu
       , actions =
         [ APP_QUIT >== \app -> app.quit
-        , FILE_OPEN >== \app -> liftIO $ openFileDialog app treePane
-        , FILE_SAVE >== \_ -> saveTmp "tmpfilename"
+        , FILE_OPEN >== \app -> openFileDialog app treePane
+        , FILE_SAVE >== \app -> showSaveDialog app (encodeAndSave entries)
         , APP_ABOUT >== \app -> liftIO $ GUI.About.showAboutDialog app
         ]
       , sidebar = SidebarPage
@@ -110,40 +113,42 @@ appMenu =
     ]
   ]
 
-openFileDialog :: Adw.Application -> GUI.Tree.TreePane -> IO ()
+openFileDialog :: Adw.Application -> GUI.Tree.TreePane -> RIO App ()
 openFileDialog app tree = do
   mbWindow <- Gtk.applicationGetActiveWindow app
   whenJust mbWindow $ \window -> do
+    appInfo <- ask
     dialog <- new Gtk.FileDialog [ #title := "Open File" ]
 
     Gtk.fileDialogOpen dialog
       (Just window)
       (Nothing :: Maybe Gio.Cancellable)
-      (Just ( \_ aresult -> do
-              result :: Either GError Gio.File <- try (Gtk.fileDialogOpenFinish dialog aresult)
-              case result of
-                Right choice -> do
-                  path <- #getPath choice
-                  whenJust path $ \file -> do
-                    withPassword app $ \password -> do
-                      openFile file password tree
-                Left _ -> pure ()
-              return ()
-            )
-      )
+      $ Just $ \_ aresult -> do
+        result :: Either GError Gio.File <- try (Gtk.fileDialogOpenFinish dialog aresult)
+        case result of
+          Right choice -> do
+            path <- #getPath choice
+            whenJust path $ \file ->
+              runRIO appInfo $ withPassword app $ \password ->
+                openFile file password tree
+          Left _ -> pure ()
+        return ()
 
-openFile :: FilePath -> B.ByteString -> GUI.Tree.TreePane -> IO ()
+openFile :: FilePath -> B.ByteString -> GUI.Tree.TreePane -> RIO App ()
 openFile inputFileName password tree = do
-  input <- BL.readFile inputFileName
+  App {..} <- ask
+  input <- liftIO $ BL.readFile inputFileName
 
-  eitherEntries <- runExceptT $ do
+  eitherEntries <- liftIO $ runExceptT $ do
     xml <- Revelation2.decrypt input password
     RevelationXML.parseEntries xml
   case eitherEntries of
-    Left err -> putStrLn $ "Error: " <> err
-    Right entries -> tree.update entries
+    Left err -> liftIO $ putStrLn $ "Error: " <> err
+    Right entries -> do
+      liftIO $ tree.update entries
+      atomically $ writeTVar openedFile $ Just $ OpenedFile inputFileName password
 
-withPassword :: Adw.Application -> (B.ByteString -> IO ()) -> IO ()
+withPassword :: Adw.Application -> (B.ByteString -> RIO App ()) -> RIO App ()
 withPassword app callback = do
   dialog <- new Adw.AlertDialog
     [ #heading := "Password"
@@ -167,14 +172,41 @@ withPassword app callback = do
     ]
   Adw.alertDialogSetExtraChild dialog $ Just password
 
+  appInfo <- ask
   on dialog #response $ \responseId ->
-    when (responseId == "submit") $
+    when (responseId == "submit") $ runRIO appInfo $
       callback =<< TE.encodeUtf8 <$> (Gtk.entryBufferGetText =<< Gtk.entryGetBuffer password)
 
   Adw.dialogPresent dialog =<< Gtk.applicationGetActiveWindow app
 
   Gtk.widgetGrabFocus password >> return ()
 
-saveTmp :: FilePath -> RIO App ()
-saveTmp fileName = do
-  liftIO $ print $ "Save, " <> fileName
+encodeAndSave :: [RevelationXML.Entry] -> FilePath -> ByteString -> RIO App ()
+encodeAndSave entries fileName password = do
+  let xml = RevelationXML.render entries
+  mbEncodedXML <- liftIO $ runExceptT $ Revelation2.encrypt xml password
+  case mbEncodedXML of
+    Right encodedXML -> RBL.writeFile fileName $ encodedXML
+    Left err -> error $ "Can't encode file: " <> err
+
+showSaveDialog :: Adw.Application -> (FilePath -> ByteString -> RIO App ()) -> RIO App ()
+showSaveDialog app onSave = do
+  mbWindow <- Gtk.applicationGetActiveWindow app
+  whenJust mbWindow $ \window -> do
+    appInfo <- ask
+    dialog <- new Gtk.FileDialog [ #title := "Save file" ]
+    Gtk.fileDialogSave dialog
+      (Just window)
+      (Nothing :: Maybe Gio.Cancellable)
+      $ Just $ \_ aresult -> do
+        result :: Either GError Gio.File <- try (Gtk.fileDialogSaveFinish dialog aresult)
+        case result of
+          Left _ -> onCancel
+          Right gfile -> do
+            mPath <- #getPath gfile
+            case mPath of
+              Nothing -> onCancel
+              Just path -> runRIO appInfo $ withPassword app $ \password ->
+                onSave path password
+  where
+  onCancel = pure ()
