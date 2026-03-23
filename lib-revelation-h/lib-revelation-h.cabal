@@ -96,7 +96,8 @@ test-suite lib-revelation-h-test
     default-language: GHC2021
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules: Helper.CompactXML
+                 , Helper.PrettyXML
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -111,6 +112,11 @@ test-suite lib-revelation-h-test
     main-is:          Main.hs
 
     -- Test dependencies.
-    build-depends:
-        base ^>=4.20.2.0,
-        lib-revelation-h
+    build-depends: base ^>=4.20.2.0
+                 , lib-revelation-h
+                 , containers
+                 , HUnit
+                 , bytestring
+                 , mtl
+                 , text
+                 , xml-conduit
