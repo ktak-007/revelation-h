@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Main (main) where
@@ -62,6 +63,7 @@ runApp inner = do
           { appLogFunc = logFunc
           , applicationId = "org.gtk.revelation-h"
           , openedFile = openedFile
+          , changed = False
           }
     runRIO appInfo inner
 
@@ -88,7 +90,8 @@ main = runApp $ do
       , actions =
         [ APP_QUIT >== \app -> app.quit
         , FILE_OPEN >== \app -> openFileDialog app treePane
-        , FILE_SAVE >== \app -> showSaveDialog app (encodeAndSave entries)
+        , FILE_SAVE_AS >== \app -> showSaveDialog app (encodeAndSave entries)
+        , FILE_SAVE >== \app -> fileSave app (encodeAndSave entries)
         , APP_ABOUT >== \app -> liftIO $ GUI.About.showAboutDialog app
         ]
       , sidebar = SidebarPage
@@ -195,8 +198,13 @@ encodeAndSave entries fileName password = do
   let xml = RevelationXML.render entries
   mbEncodedXML <- liftIO $ runExceptT $ Revelation2.encrypt xml password
   case mbEncodedXML of
-    Right encodedXML -> RBL.writeFile fileName $ encodedXML
-    Left err -> error $ "Can't encode file: " <> err
+    Right encodedXML -> do
+      RBL.writeFile fileName $ encodedXML
+      openedFile' <- view $ to openedFile
+      atomically $ writeTVar openedFile' $ Just $ OpenedFile fileName password
+    Left err -> do
+      logError $ "Can't encode file: " <> displayShow err
+      exitFailure
 
 showSaveDialog :: Adw.Application -> (FilePath -> ByteString -> RIO App ()) -> RIO App ()
 showSaveDialog app onSave = do
@@ -219,3 +227,11 @@ showSaveDialog app onSave = do
                 onSave path password
   where
   onCancel = pure ()
+
+fileSave :: Adw.Application -> (FilePath -> ByteString -> RIO App ()) -> RIO App ()
+fileSave app onSave = do
+  App {..} <- ask
+  if changed then readTVarIO openedFile >>= \case
+    Nothing -> showSaveDialog app onSave
+    Just (OpenedFile name password) -> onSave name password
+  else logInfo "File is unchanged, skipped."
