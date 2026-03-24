@@ -46,32 +46,41 @@ import           Control.Monad.Except (runExceptT)
 import qualified Data.Text.Encoding as TE
 
 
-printUsage :: IO ()
+printUsage :: RIO App ()
 printUsage = do
-    pn <- getProgName
-    error $ "Usage: " ++ pn ++ " [--xml decodedFile]"
+    pn <- liftIO getProgName
+    logInfo $ displayShow $ "Usage: " ++ pn ++ " [--xml decodedFile]"
+
+runApp :: RIO App () -> IO ()
+runApp inner = do
+  openedFile <- newTVarIO Nothing
+  lo <- logOptionsHandle stderr True
+  let logOptions = lo & setLogUseTime False
+                      & setLogUseLoc  False
+  withLogFunc logOptions $ \logFunc -> do
+    let appInfo = App
+          { appLogFunc = logFunc
+          , applicationId = "org.gtk.revelation-h"
+          , openedFile = openedFile
+          }
+    runRIO appInfo inner
 
 main :: IO ()
-main = do
-  args <- getArgs
+main = runApp $ do
+  args <- liftIO getArgs
   entries <- case args of
     [] -> return []
-    ["--help"] -> printUsage >> return []
+    ["--help"] -> printUsage >> exitSuccess
     ["--xml", xmlFile] -> do
-      input <- BL.readFile xmlFile
-      mbEntries <- runExceptT $ RevelationXML.parseEntries input
+      input <- liftIO $ BL.readFile xmlFile
+      mbEntries <- liftIO $ runExceptT $ RevelationXML.parseEntries input
       entries <- case mbEntries of
-        Left msg -> (putStrLn $ "Error: " <> msg) >> return []
+        Left msg -> (logError $ displayShow msg) >> return []
         Right entries -> return entries
       return entries
-    _ -> printUsage >> return []
+    _ -> printUsage >> exitFailure
 
-  openedFile <- newTVarIO Nothing
-  let appInfo = App
-        { applicationId = "org.gtk.revelation-h"
-        , openedFile = openedFile
-        }
-  runRIO appInfo $ runApplicationWindow $ do
+  runApplicationWindow $ do
     infoPane <- GUI.InfoPane.create
     treePane <- GUI.Tree.create entries (infoPane.render)
     pure ApplicationProperties
