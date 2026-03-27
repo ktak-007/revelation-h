@@ -89,6 +89,7 @@ main = runApp $ do
       { menu = appMenu
       , actions =
         [ APP_QUIT >== \app -> app.quit
+        , FILE_NEW >== \app -> fileNew app treePane
         , FILE_OPEN >== \app -> openFileDialog app treePane
         , FILE_SAVE_AS >== \app -> showSaveDialog app (encodeAndSave entries)
         , FILE_SAVE >== \app -> fileSave app (encodeAndSave entries)
@@ -235,3 +236,31 @@ fileSave app onSave = do
     Nothing -> showSaveDialog app onSave
     Just (OpenedFile name password) -> onSave name password
   else logInfo "File is unchanged, skipped."
+
+fileNew :: Adw.Application -> GUI.Tree.TreePane -> RIO App ()
+fileNew app tree = do
+  App {..} <- ask
+  if changed
+  then withAreYouSure app doFileNew
+  else doFileNew
+  where
+  doFileNew = liftIO $ tree.update []
+
+withAreYouSure :: Adw.Application -> (RIO App ()) -> RIO App ()
+withAreYouSure app callback = do
+  appInfo <- ask
+  dialog <- new Adw.AlertDialog
+    [ #heading := "Are you sure?"
+    , #body := "You have unsaved changes! Are you sure you want to lose your changes?"
+    , #defaultResponse := "cancel"
+    , #closeResponse := "cancel"
+    ]
+  Adw.alertDialogAddResponse dialog "cancel" "Cancel"
+  Adw.alertDialogAddResponse dialog "submit" "Lose"
+  Adw.alertDialogSetResponseAppearance dialog "submit" Adw.ResponseAppearanceDestructive
+
+  on dialog #response $ \responseId ->
+    when (responseId == "submit") $ runRIO appInfo $
+      callback
+
+  Adw.dialogPresent dialog =<< Gtk.applicationGetActiveWindow app
