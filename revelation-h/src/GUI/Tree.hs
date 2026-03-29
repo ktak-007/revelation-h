@@ -7,6 +7,7 @@ module GUI.Tree ( create, TreePane(..) ) where
 import           Definitions
 import           RevelationXML
 import qualified GUI.Icons
+import           GUI.InfoPane (RenderInfo(..))
 
 -- rio
 import           RIO hiding (on, set, view)
@@ -85,7 +86,7 @@ getChildrenFunc parent = do
     return childListModel
   when' cond action = if cond then Just <$> action else return Nothing
 
-create :: [Entry] -> (Entry -> IO ()) -> RIO App TreePane
+create :: [Entry] -> (RenderInfo -> IO ()) -> RIO App TreePane
 create entries callback = do
   treeView <- getTreeView entries callback
   store    <- getStoreFromTreeView treeView
@@ -114,7 +115,7 @@ getStoreFromTreeView treeView = liftIO $ do
     Just store -> return store
     _ -> error "getStoreFromTreeView: Store not found"
 
-getTreeView :: [Entry] -> (Entry -> IO ()) -> RIO App Gtk.ListView
+getTreeView :: [Entry] -> (RenderInfo -> IO ()) -> RIO App Gtk.ListView
 getTreeView entries callback = do
   rootModel <- Gio.toListModel =<< makeListStore entries
 
@@ -203,7 +204,7 @@ getTreeView entries callback = do
     mItem <- get selection #selectedItem
     whenJust mItem $ \item -> do
       entry <- getEntry =<< unsafeCastTo Gtk.TreeListRow item
-      callback entry
+      callback $ EntryPage entry
 
   treeView <- new Gtk.ListView
     [ #model := selection

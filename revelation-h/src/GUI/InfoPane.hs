@@ -3,6 +3,7 @@
 
 module GUI.InfoPane
   ( InfoPane(..)
+  , RenderInfo(..)
   , create
   ) where
 
@@ -39,9 +40,11 @@ import           System.Hclip (setClipboard)
 
 data InfoPane = InfoPane
   { view   :: Gtk.CenterBox
-  , render :: Entry -> IO ()
+  , render :: RenderInfo -> IO ()
   }
 
+data RenderInfo = StartPage { text :: Text }
+                | EntryPage Entry
 data RenderFunctions = RenderFunctions
   { addLink :: Text -> Text -> IO ()
   , addField :: Text -> Text -> IO ()
@@ -81,7 +84,8 @@ create = do
   typeLabel <- new Gtk.Label [ #xalign := 0.5 ]
   Gtk.widgetAddCssClass typeLabel "dim-label"
   #append content typeLabel
-  let setType text = set typeLabel [ #label := text ]
+  let setType text = set typeLabel [ #label := text, #visible := True ]
+  let cleanType = Gtk.widgetSetVisible typeLabel False
 
   -- Header
   headerLabel <- new Gtk.Label
@@ -97,9 +101,8 @@ create = do
   descriptionLabel <- new Gtk.Label [ #xalign := 0.5 ]
   Gtk.widgetAddCssClass descriptionLabel "dim-label"
   #append content descriptionLabel
-  let setDescription text = unless (T.null text) $ do
-        #setLabel descriptionLabel text
-        set descriptionLabel [ #visible := True ]
+  let setDescription text = unless (T.null text) $
+        set descriptionLabel [ #label := text, #visible := True ]
   let cleanDescription = Gtk.widgetSetVisible descriptionLabel False
 
   -- Group of fields
@@ -249,12 +252,16 @@ create = do
         --   set outer [ #opacity := next ]
         --   pure (next >= 0.0)
 
+        cleanType
         cleanGroup
         cleanDescription
         cleanNotes
         cleanUpdated
 
-  let renderBox entry = do
+  let renderBox (StartPage text) = do
+        cleanInfoPane
+        setHeader text
+      renderBox (EntryPage entry) = do
         cleanInfoPane
 
         setHeader entry.name

@@ -8,6 +8,7 @@ import           Definitions
 import qualified GUI.About
 import           GUI.Actions
 import qualified GUI.InfoPane
+import           GUI.InfoPane (RenderInfo(..))
 import           GUI.Menu
 import qualified GUI.Tree
 import           GUI.Window
@@ -89,7 +90,7 @@ main = runApp $ do
       { menu = appMenu
       , actions =
         [ APP_QUIT >== \app -> app.quit
-        , FILE_NEW >== \app -> fileNew app treePane
+        , FILE_NEW >== \app -> fileNew app infoPane treePane
         , FILE_OPEN >== \app -> openFileDialog app treePane
         , FILE_SAVE_AS >== \app -> showSaveDialog app (encodeAndSave entries)
         , FILE_SAVE >== \app -> fileSave app (encodeAndSave entries)
@@ -237,14 +238,16 @@ fileSave app onSave = do
     Just (OpenedFile name password) -> onSave name password
   else logInfo "File is unchanged, skipped."
 
-fileNew :: Adw.Application -> GUI.Tree.TreePane -> RIO App ()
-fileNew app tree = do
+fileNew :: Adw.Application -> GUI.InfoPane.InfoPane -> GUI.Tree.TreePane -> RIO App ()
+fileNew app info tree = do
   App {..} <- ask
   if changed
   then withAreYouSure app doFileNew
   else doFileNew
   where
-  doFileNew = liftIO $ tree.update []
+  doFileNew = liftIO $ do
+    tree.update []
+    info.render $ StartPage "Hello, world!"
 
 withAreYouSure :: Adw.Application -> (RIO App ()) -> RIO App ()
 withAreYouSure app callback = do
