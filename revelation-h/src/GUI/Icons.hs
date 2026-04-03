@@ -49,8 +49,8 @@ svgToTexture svgData = runMaybeT $ do
   pixbuf <- MaybeT $ Rsvg.handleGetPixbufAndError h
   Gdk.textureNewForPixbuf pixbuf
 
-create' :: Entry -> Bool -> IO (Maybe Gdk.Texture)
-create' entry open = case getIcon entry open of
+create :: Entry -> Bool -> IO (Maybe Gdk.Texture)
+create entry open = case getIcon entry open of
   Nothing      -> return Nothing
   Just svgData -> svgToTexture svgData
 
