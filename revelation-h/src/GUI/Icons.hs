@@ -22,6 +22,9 @@ import qualified GI.GLib as GLib
 -- gi-gdk
 import qualified GI.Gdk as Gdk
 
+-- transformers
+import           Control.Monad.Trans.Maybe
+
 
 getIcon :: Entry -> Bool -> Maybe ByteString
 getIcon Folder {} False = Just $(embedFile =<< makeRelativeToProject "icons/folder-symbolic.svg")
@@ -40,21 +43,16 @@ getIcon Database {} _ = Just $(embedFile =<< makeRelativeToProject "icons/databa
 
 #if darwin_BUILD_OS
 
-svgToTexture :: ByteString -> IO Gdk.Texture
-svgToTexture svgData = do
-  mHandle <- Rsvg.handleNewFromData svgData
-  case mHandle of
-    Nothing     -> fail "svgToTexture: failed to parse SVG"
-    Just h -> do
-      mPixbuf <- Rsvg.handleGetPixbufAndError h
-      case mPixbuf of
-        Nothing     -> fail "svgToTexture: failed to render SVG"
-        Just pixbuf -> Gdk.textureNewForPixbuf pixbuf
+svgToTexture :: ByteString -> IO (Maybe Gdk.Texture)
+svgToTexture svgData = runMaybeT $ do
+  h      <- MaybeT $ Rsvg.handleNewFromData svgData
+  pixbuf <- MaybeT $ Rsvg.handleGetPixbufAndError h
+  Gdk.textureNewForPixbuf pixbuf
 
-create :: Entry -> Bool -> IO (Maybe Gdk.Texture)
-create entry open = case getIcon entry open of
+create' :: Entry -> Bool -> IO (Maybe Gdk.Texture)
+create' entry open = case getIcon entry open of
   Nothing      -> return Nothing
-  Just svgData -> Just <$> svgToTexture svgData
+  Just svgData -> svgToTexture svgData
 
 #else
 
