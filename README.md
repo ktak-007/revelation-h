@@ -19,7 +19,7 @@ To build, you have to have Nix package manager installed: https://nixos.org/down
 ## Development
 
 1. Install [Nix package manager](https://nixos.org/download/#download-nix)
-2. Run `nix-shell` - all required soft will be installed
+2. Run `nix-shell` - all required soft will be installed. Probably, in MacOS you have to run `env NIXPKGS_ALLOW_UNSUPPORTED_SYSTEM=1 nix-shell` as the gi-adwaita is not supported.
 3. Run `cabal build <subproject>`
 
 ## Running a project

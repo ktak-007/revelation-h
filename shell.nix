@@ -15,14 +15,16 @@ let
     gi-gdk
     gi-gtk
     gi-gio
-  ]);
+  ] ++ (if sys.stdenv.isDarwin then [
+    gi-rsvg
+  ] else []));
 
   projectPackages = (with haskellWithPackages; [
     haskellWithPackages
     haskell.ghcid
     haskell.cabal-install
     haskell.haskell-language-server
-  ]) ++ (if pkgs.stdenv.isLinux then [
+  ]) ++ (if sys.stdenv.isLinux then [
     pkgs.xclip # For Hclip library
   ] else []);
 
@@ -35,10 +37,7 @@ let
 
 in
   sys.mkShell {
-    packages = projectPackages ++ [
-      sys.zlib
-    ]
-    ++ funPackages;
+    packages = projectPackages ++ funPackages;
 
     # inputsFrom = [(import ./default.nix {}).app.env];
     # nativeBuildInputs = [ sys.zlib ];

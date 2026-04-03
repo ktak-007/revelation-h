@@ -96,6 +96,8 @@ executable revelation-h
                     , template-haskell
                     , text
                     , transformers
+    if os(darwin)
+      build-depends:  gi-rsvg
 
     -- Directories containing source files.
     hs-source-dirs:   src
