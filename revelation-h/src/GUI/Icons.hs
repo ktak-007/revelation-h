@@ -14,6 +14,9 @@ import           Data.FileEmbed (embedFile, makeRelativeToProject)
 #if darwin_BUILD_OS
 -- gi-rsvg
 import qualified GI.Rsvg as Rsvg
+
+-- bytestring
+import qualified Data.ByteString as BS
 #else
 -- gi-glib
 import qualified GI.GLib as GLib
@@ -43,9 +46,24 @@ getIcon Database {} _ = Just $(embedFile =<< makeRelativeToProject "icons/databa
 
 #if darwin_BUILD_OS
 
+-- | Modify SVG dimensions to render at higher resolution for HiDPI/Retina.
+-- Requires viewBox to be present for correct scaling.
+scaleSvgForHiDpi :: ByteString -> ByteString
+scaleSvgForHiDpi = replaceAttrValue "height" "48" . replaceAttrValue "width" "48"
+  where
+  replaceAttrValue :: ByteString -> ByteString -> ByteString -> ByteString
+  replaceAttrValue attr newVal xml =
+    let needle = attr <> "=\""
+        (before, match) = BS.breakSubstring needle xml
+    in if BS.null match
+       then xml
+       else let afterNeedle = BS.drop (BS.length needle) match
+                (_, rest) = BS.break (== 34) afterNeedle -- 34 = '"'
+            in before <> needle <> newVal <> rest
+
 svgToTexture :: ByteString -> IO (Maybe Gdk.Texture)
 svgToTexture svgData = runMaybeT $ do
-  h      <- MaybeT $ Rsvg.handleNewFromData svgData
+  h      <- MaybeT $ Rsvg.handleNewFromData $ scaleSvgForHiDpi svgData
   pixbuf <- MaybeT $ Rsvg.handleGetPixbufAndError h
   Gdk.textureNewForPixbuf pixbuf
 
