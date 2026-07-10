@@ -25,9 +25,10 @@ import qualified GI.GLib as GLib
 -- gi-gdk
 import qualified GI.Gdk as Gdk
 
+#if darwin_BUILD_OS
 -- transformers
 import           Control.Monad.Trans.Maybe
-
+#endif
 
 getIcon :: Entry -> Bool -> Maybe ByteString
 getIcon Folder {} False = Just $(embedFile =<< makeRelativeToProject "icons/folder-symbolic.svg")
