@@ -91,6 +91,7 @@ executable revelation-h
                     , gi-gtk
                     , haskell-gi-base
                     , Hclip
+                    , heredoc
                     , mtl
                     , rio
                     , template-haskell

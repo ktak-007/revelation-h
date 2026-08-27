@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module GUI.InfoPane
@@ -36,6 +37,8 @@ import qualified Data.Text as T
 -- Hclip
 import           System.Hclip (setClipboard)
 
+-- heredoc
+import           Text.Heredoc
 
 
 data InfoPane = InfoPane
@@ -47,8 +50,7 @@ data RenderInfo = StartPage { text :: Text }
                 | EntryPage Entry
 data RenderFunctions = RenderFunctions
   { addLink :: Text -> Text -> IO ()
-  , addField :: Text -> Text -> IO ()
-  , addHidden :: Text -> Text -> IO ()
+  , addField :: Bool -> Text -> Text -> IO ()
   , setNotes :: Text -> IO ()
   , setUpdated :: Entry -> IO ()
   }
@@ -79,6 +81,15 @@ create = do
     , #vexpand := True
     , #centerWidget := clamp
     ]
+  css <- new Gtk.CssProvider []
+  Gtk.cssProviderLoadFromString css $ T.pack
+    [str|.action-row-title-dim .title {
+        |  opacity: 0.8;
+        |}|]
+  Gtk.widgetGetDisplay outer >>= \display' -> Gtk.styleContextAddProviderForDisplay
+    display'
+    css
+    $ fromIntegral Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
 
   -- Type field
   typeLabel <- new Gtk.Label [ #xalign := 0.5 ]
@@ -109,35 +120,25 @@ create = do
   group <- new Adw.PreferencesGroup [ #marginTop := 12 ]
   #append content group
 
-  let addField name value = do
-        valueLabel <- new Gtk.Label
-          [ #label := value
-          , #valign := Gtk.AlignCenter
-          ]
-        Gtk.widgetAddCssClass valueLabel "dim-label"
-
-        row <- new Adw.ActionRow [ #title := name ]
-        Adw.actionRowAddSuffix row valueLabel
-        Adw.preferencesGroupAdd group row
-
-  let addHidden name value = do
+  let addField hidden name value = do
         box <- new Gtk.Box
           [ #orientation := Gtk.OrientationHorizontal
           , #spacing := 6
           , #valign := Gtk.AlignCenter
           ]
         valueLabel <- new Gtk.Label
-          [ #label := "xxxxxxxxxxxxxxxxxxxx"
+          [ #label := if hidden then "••••••••••••••" else value
           , #valign := Gtk.AlignCenter
           ]
-        Gtk.widgetAddCssClass valueLabel "dim-label"
         #append box valueLabel
+
         button <- new Gtk.Button
           [ #iconName := "edit-copy-symbolic"
           , #tooltipText := "Copy to clipboard"
           , #hasFrame := False
           ]
         Gtk.widgetAddCssClass button "flat"
+        Gtk.widgetAddCssClass button "dim-label"
         on button #clicked $ do
           setClipboard $ T.unpack value
           set button [ #iconName := "object-select-symbolic" ]
@@ -145,10 +146,28 @@ create = do
             set button [ #iconName := "edit-copy-symbolic" ]
             return False
           return ()
-        #append box button
+
+        -- to show the button on hover only
+        revealer <- new Gtk.Revealer
+          [ #child := button
+          , #transitionType := Gtk.RevealerTransitionTypeCrossfade
+          , #transitionDuration := 200
+          , #revealChild := False
+          ]
+        #append box revealer
+
         row <- new Adw.ActionRow [ #title := name ]
         Adw.actionRowAddSuffix row box
         Adw.preferencesGroupAdd group row
+        Gtk.widgetAddCssClass row "action-row-title-dim"
+
+        -- to show the button on hover only
+        motion <- new Gtk.EventControllerMotion []
+        on motion #enter $ \_x _y ->
+          set revealer [ #revealChild := True ]
+        on motion #leave $
+          set revealer [ #revealChild := False ]
+        Gtk.widgetAddController row motion
 
   let addLink name url = do
         link <- new Gtk.Label
@@ -189,9 +208,7 @@ create = do
     , #halign := Gtk.AlignStart
     , #marginBottom := 6
     ]
-  -- Gtk.widgetAddCssClass notesHeader "heading"
-  -- Gtk.widgetAddCssClass notesHeader "title-3"
-  -- Gtk.widgetAddCssClass notesHeader "dim-label"
+  Gtk.widgetAddCssClass notesHeader "dim-label"
 
   notesTextView <- new Gtk.TextView
     [ #wrapMode := Gtk.WrapModeWord
@@ -204,7 +221,6 @@ create = do
     , #vexpand := True
     , #minContentHeight := 120
     ]
-  Gtk.widgetAddCssClass notesScroll "dim-label"
 
   notesBox <- new Gtk.Box
     [ #orientation :=  Gtk.OrientationVertical
@@ -270,7 +286,7 @@ create = do
 
         -- renderEntry' entry addLink addField setNotes setUpdated
         renderEntry $ RenderParams entry
-                    $ RenderFunctions addLink addField addHidden setNotes setUpdated
+                    $ RenderFunctions addLink addField setNotes setUpdated
 
         case entry of
           Folder {} -> return ()
@@ -346,8 +362,8 @@ renderEntry (RenderParams entry RenderFunctions {..}) = case entry of
     username ? field "Username"
     password ? hidden "Password"
   where
-  field = addField
-  hidden = addHidden
+  field = addField False
+  hidden = addField True
 
 (?) :: Applicative f => Text -> (Text -> f ()) -> f ()
 t ? f = unless (T.null t) (f t)
